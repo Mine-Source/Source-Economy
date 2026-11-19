@@ -1,0 +1,22 @@
+# Almacenamiento: sqlite (archivo en la carpeta del plugin) o mysql (MySQL/MariaDB)
+storage:
+  type: sqlite
+  mysql:
+    host: localhost
+    port: 3306
+    database: economycore
+    user: root
+    password: ""
+# Monedas: decimals = decimales (0-8). Se guardan como enteros exactos.
+currencies:
+  coins:
+    name: Coins
+    symbol: "$"
+    decimals: 2
+  gems:
+    name: Gems
+    symbol: "G"
+    decimals: 0
+# Cada cuántos segundos se reintentan entregas pendientes y se limpian compras abandonadas
+recovery-interval-seconds: 60
+max-delivery-attempts: 5
