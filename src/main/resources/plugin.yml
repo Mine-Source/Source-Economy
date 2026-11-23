@@ -2,9 +2,9 @@ name: EconomyCore
 version: '${project.version}'
 main: com.economycore.core.EconomyCore
 api-version: '1.21'
+softdepend: [Vault]
 authors: [EconomyCore]
 description: Advanced economy suite - shops, auctions, bazaar, markets, traders, trading, banks, stock exchange, companies, treasury and analytics.
-load: STARTUP
 folia-supported: false
 
 commands:

@@ -105,6 +105,7 @@ public final class EconomyCore extends JavaPlugin {
         hub.registerCommand();
 
         getServer().getServicesManager().register(EconomyAPI.class, new EconomyApiImpl(this), this, ServicePriority.Normal);
+        com.economycore.api.VaultBridge.tryRegister(this);
         joinListener.prepareAll();
 
         if (getConfig().getBoolean("database.backup.enabled", true)) {

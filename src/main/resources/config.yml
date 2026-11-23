@@ -146,3 +146,10 @@ analytics:
     concentration-percent: "50"
     supply-growth-percent: "10"
     treasury-low: "0"
+
+vault:
+  enabled: true
+  # Desregistra los demás proveedores de economía de Vault para que EconomyCore siempre sea el activo
+  force-priority: true
+  # Moneda expuesta a Vault ("" = moneda por defecto)
+  currency: ""
