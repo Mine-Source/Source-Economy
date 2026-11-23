@@ -1,0 +1,137 @@
+name: EconomyCore
+version: '${project.version}'
+main: com.economycore.core.EconomyCore
+api-version: '1.21'
+authors: [EconomyCore]
+description: Advanced economy suite - shops, auctions, bazaar, markets, traders, trading, banks, stock exchange, companies, treasury and analytics.
+load: STARTUP
+folia-supported: false
+
+commands:
+  eco:
+    description: Economy center (hub and administration)
+    usage: /eco [give|take|set|reload|backup] ...
+    aliases: [economy, ecocore]
+  balance:
+    description: Show balances
+    usage: /balance [player]
+    aliases: [bal, money]
+  pay:
+    description: Pay another player
+    usage: /pay <player> <amount> [currency]
+  baltop:
+    description: Wealth ranking
+    usage: /baltop [currency]
+    aliases: [balancetop]
+  sellall:
+    description: Sell everything sellable in your inventory to the shop
+    usage: /sellall
+  shop:
+    description: Open the server shop
+    usage: /shop
+  markets:
+    description: Open the markets list
+    usage: /markets [id]
+    aliases: [market, mercados]
+  ah:
+    description: Auction house
+    usage: /ah [sell <price> [hours] [bin|auction]]
+    aliases: [auction, auctionhouse]
+  bazaar:
+    description: Bazaar order book market
+    usage: /bazaar
+    aliases: [bz]
+  trader:
+    description: Open a trader by id (for NPC plugins)
+    usage: /trader open <id> [player]
+  trade:
+    description: Trade with another player
+    usage: /trade <player|accept|deny|history>
+  pshop:
+    description: Player shops
+    usage: /pshop
+    aliases: [playershop, tiendas]
+  bank:
+    description: Bank accounts
+    usage: /bank
+  stocks:
+    description: Stock exchange
+    usage: /stocks
+    aliases: [bolsa, stock]
+  company:
+    description: Companies
+    usage: /company [create <name> <ticker>]
+    aliases: [empresa, empresas]
+  treasury:
+    description: Treasury, taxes and projects
+    usage: /treasury
+    aliases: [tesoreria]
+  ecostats:
+    description: Economy analytics
+    usage: /ecostats
+    aliases: [analytics]
+  mailbox:
+    description: Claim items owed to you
+    usage: /mailbox
+    aliases: [buzon]
+
+permissions:
+  economycore.use:
+    description: Use player features
+    default: true
+  economycore.admin:
+    description: Full administration
+    default: op
+    children:
+      economycore.alerts: true
+      economycore.shop.admin: true
+      economycore.market.admin: true
+      economycore.ah.admin: true
+      economycore.bazaar.admin: true
+      economycore.trader.admin: true
+      economycore.bank.admin: true
+      economycore.stock.admin: true
+      economycore.company.admin: true
+      economycore.treasury.admin: true
+      economycore.analytics.admin: true
+  economycore.alerts:
+    description: Receive economy alerts
+    default: op
+  economycore.tax.exempt:
+    description: Exempt from taxes
+    default: false
+  economycore.shop.admin:
+    default: op
+  economycore.market.admin:
+    default: op
+  economycore.ah.admin:
+    default: op
+  economycore.bazaar.admin:
+    default: op
+  economycore.trader.admin:
+    default: op
+  economycore.bank.admin:
+    default: op
+  economycore.stock.admin:
+    default: op
+  economycore.company.admin:
+    default: op
+  economycore.treasury.admin:
+    default: op
+  economycore.analytics.admin:
+    default: op
+  economycore.pay:
+    default: true
+  economycore.trade:
+    default: true
+  economycore.company.create:
+    default: true
+  economycore.pshop.create:
+    default: true
+  economycore.bank.create:
+    default: true
+  economycore.ah.sell:
+    default: true
+  economycore.market.*:
+    description: Access every market regardless of its permission
+    default: op

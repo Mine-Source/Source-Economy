@@ -1,0 +1,148 @@
+# EconomyCore - configuración. Las claves nuevas se añaden solas al actualizar.
+modules:
+  economy: true
+  shop: true
+  markets: true
+  auction: true
+  bazaar: true
+  traders: true
+  trade: true
+  playershops: true
+  bank: true
+  stocks: true
+  company: true
+  treasury: true
+  analytics: true
+
+database:
+  backup:
+    enabled: true
+    interval-hours: 6
+    keep: 20
+    on-shutdown: false
+
+economy:
+  default-currency: coins
+  min-transfer: "0.01"
+  transfer-fee-percent: "0"
+  currencies:
+    - id: coins
+      name: Monedas
+      symbol: "$"
+      decimals: 2
+      start-balance: "100"
+      transferable: true
+
+markets:
+  timezone: "UTC"
+
+auction-house:
+  commission-percent: "5"
+  listing-fee-percent: "1"
+  max-listings: 10
+  min-price: "1"
+  max-price: "1000000000"
+  max-duration-hours: 168
+  min-bid-increment-percent: "5"
+  anti-snipe:
+    window-seconds: 120
+    extend-seconds: 120
+    max-extensions: 10
+
+bazaar:
+  commission-percent: "1.25"
+  max-orders: 28
+
+trade:
+  confirm-delay-seconds: 3
+  max-distance: 0
+  session-timeout-seconds: 300
+
+playershops:
+  max-shops: 3
+  creation-cost: "0"
+  max-items: 45
+  commission-percent: "2"
+
+bank:
+  max-accounts: 5
+  creation-fee: "0"
+  interest:
+    personal-percent: "0.5"
+    shared-percent: "0.25"
+    max-balance: "1000000"
+    source: SYSTEM
+    interval-minutes: 60
+
+companies:
+  creation-cost: "5000"
+  initial-shares: 1000
+  initial-share-price: "10"
+  max-per-player: 3
+  max-members: 50
+  corporate-tax-percent: "5"
+  payroll-interval-minutes: 60
+  dividend-interval-hours: 24
+  defaults:
+    - id: minera
+      name: Minera Central
+      ticker: MINC
+      industry: Minería
+      description: Extrae y vende minerales al mercado.
+      shares: 10000
+      price: "25"
+      capital: "50000"
+      auto-dividend-percent: "10"
+      icon: IRON_PICKAXE
+      products:
+        - {material: IRON_INGOT, price: "6", stock: 200, produce-amount: 16, produce-interval-min: 10, produce-cap: 640}
+        - {material: COAL, price: "2", stock: 400, produce-amount: 32, produce-interval-min: 10, produce-cap: 1280}
+    - id: agro
+      name: AgroCorp
+      ticker: AGRO
+      industry: Agricultura
+      description: Cultivos y alimentos.
+      shares: 8000
+      price: "12"
+      capital: "20000"
+      auto-dividend-percent: "15"
+      icon: WHEAT
+      products:
+        - {material: WHEAT, price: "1.5", stock: 500, produce-amount: 32, produce-interval-min: 5, produce-cap: 1280}
+        - {material: BREAD, price: "3", stock: 200, produce-amount: 16, produce-interval-min: 5, produce-cap: 640}
+    - id: forja
+      name: Forja Real
+      ticker: FORJ
+      industry: Manufactura
+      description: Herramientas y armas.
+      shares: 5000
+      price: "40"
+      capital: "80000"
+      auto-dividend-percent: "8"
+      icon: ANVIL
+      products:
+        - {material: IRON_SWORD, price: "40", stock: 20, produce-amount: 2, produce-interval-min: 15, produce-cap: 60}
+        - {material: IRON_PICKAXE, price: "45", stock: 20, produce-amount: 2, produce-interval-min: 15, produce-cap: 60}
+
+stocks:
+  commission-percent: "0.5"
+  max-orders: 20
+  sensitivity: "0.02"
+  max-step: "0.05"
+  max-price-multiplier: "100"
+  tick-seconds: 30
+  snapshot-minutes: 10
+
+treasury:
+  allow-player-proposals: true
+  max-open-proposals: 2
+  min-votes: 1
+  wealth-tax-interval-hours: 24
+
+analytics:
+  snapshot-minutes: 10
+  alerts:
+    large-transfer: "1000000"
+    concentration-percent: "50"
+    supply-growth-percent: "10"
+    treasury-low: "0"
