@@ -25,7 +25,8 @@ jobs:
           name: EconomyCore
           path: target/EconomyCore-*.jar
           if-no-files-found: error
-release:
+jobs:
+  release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
