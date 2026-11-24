@@ -10,11 +10,18 @@ public final class Theme {
     public static boolean enabled = true;
 
     private static final Map<Character, String> PALETTE = new HashMap<>();
+    private static final Map<Character, String> TITLE = new HashMap<>();
     static {
-        PALETTE.put('0', "1F2430"); PALETTE.put('1', "3B5BDB"); PALETTE.put('2', "2F9E6B"); PALETTE.put('3', "1C9BB0");
-        PALETTE.put('4', "D64545"); PALETTE.put('5', "8E5CF0"); PALETTE.put('6', "FFB020"); PALETTE.put('7', "A3ABBD");
-        PALETTE.put('8', "636B7F"); PALETTE.put('9', "5B9DFF"); PALETTE.put('a', "4ADE80"); PALETTE.put('b', "4FE3D0");
-        PALETTE.put('c', "FF6B6B"); PALETTE.put('d', "F472B6"); PALETTE.put('e', "FFD54A"); PALETTE.put('f', "F4F6FB");
+        // Texto sobre fondo oscuro (items, chat). Roles: 6=dinero, e=acción, a=positivo, c=negativo, b=acento, 9=info, d/5=premium, 7=texto, 8=tenue, f=títulos.
+        String[][] p = {
+                {"0", "0F172A"}, {"1", "3B82F6"}, {"2", "22C55E"}, {"3", "06B6D4"}, {"4", "EF4444"}, {"5", "A78BFA"}, {"6", "FBBF24"}, {"7", "94A3B8"},
+                {"8", "64748B"}, {"9", "60A5FA"}, {"a", "4ADE80"}, {"b", "2DD4BF"}, {"c", "F87171"}, {"d", "F0ABFC"}, {"e", "FDE047"}, {"f", "F8FAFC"}};
+        // Texto sobre el fondo gris claro del título del inventario: versiones oscuras con buen contraste.
+        String[][] t = {
+                {"0", "0F172A"}, {"1", "1E3A8A"}, {"2", "166534"}, {"3", "0E7490"}, {"4", "991B1B"}, {"5", "5B21B6"}, {"6", "92400E"}, {"7", "475569"},
+                {"8", "334155"}, {"9", "1D4ED8"}, {"a", "15803D"}, {"b", "0F766E"}, {"c", "B91C1C"}, {"d", "A21CAF"}, {"e", "A16207"}, {"f", "1E293B"}};
+        for (String[] x : p) PALETTE.put(x[0].charAt(0), x[1]);
+        for (String[] x : t) TITLE.put(x[0].charAt(0), x[1]);
     }
 
     public static String hex(String rrggbb) {
@@ -30,7 +37,12 @@ public final class Theme {
     }
 
     /** Converts &-codes (and &#RRGGBB) to section codes, using the palette for the 16 classic colours. */
-    public static String paint(String s) {
+    public static String paint(String s) { return paint(s, PALETTE); }
+
+    /** Same as paint but with dark colours that stay readable on the light-grey inventory title bar. */
+    public static String paintTitle(String s) { return paint(s, TITLE); }
+
+    private static String paint(String s, Map<Character, String> pal) {
         if (s == null) return "";
         StringBuilder out = new StringBuilder(s.length() + 16);
         for (int i = 0; i < s.length(); i++) {
@@ -39,8 +51,8 @@ public final class Theme {
                 char n = s.charAt(i + 1);
                 if (n == '#' && isHex(s, i + 2)) { out.append(hex(s.substring(i + 2, i + 8))); i += 7; continue; }
                 char l = Character.toLowerCase(n);
-                if (PALETTE.containsKey(l)) {
-                    if (enabled) out.append(hex(PALETTE.get(l))); else out.append('§').append(l);
+                if (pal.containsKey(l)) {
+                    if (enabled) out.append(hex(pal.get(l))); else out.append('§').append(l);
                     i++;
                     continue;
                 }

@@ -63,52 +63,142 @@ public final class AuctionMenus {
         return arr[0];
     }
 
-    private ItemStack icon(Auction a, Set<Long> favs) {
+    private ItemStack icon(Auction a, Set<Long> favs, boolean mine) {
         ItemStack base = Inv.decodeOr(a.itemData(), a.material());
         base.setAmount(Math.max(1, Math.min(a.amount(), base.getMaxStackSize())));
         List<String> lore = new ArrayList<>();
-        lore.add("&8&m                    ");
+        lore.add("");
         lore.add("&7Vendedor: &f" + a.sellerName() + (favs.contains(a.id()) ? "  &e★" : ""));
-        lore.add("&7Cantidad: &f" + a.amount());
-        if (a.isBin()) lore.add("&7Precio: " + Money.fmt(a.currency(), a.startPrice()) + " &a(Compra directa)");
-        else {
-            lore.add("&7Puja actual: " + (a.currentBid() == null ? "&8sin pujas &7(mín. " + Money.fmt(a.currency(), a.startPrice()) + "&7)" : Money.fmt(a.currency(), a.currentBid())));
-            lore.add("&7Pujas: &f" + a.bidCount() + (a.bidderName() != null ? " &7por &f" + a.bidderName() : ""));
+        if (a.amount() > 1) lore.add("&7Cantidad: &f" + a.amount());
+        if (a.isBin()) {
+            lore.add("&7Precio: " + Money.fmt(a.currency(), a.startPrice()));
+            lore.add("&8Compra directa");
+        } else {
+            lore.add("&7Puja actual: " + (a.currentBid() == null ? "&8sin pujas" : Money.fmt(a.currency(), a.currentBid())));
+            if (a.currentBid() == null) lore.add("&7Puja mínima: " + Money.fmt(a.currency(), a.startPrice()));
+            lore.add("&7Pujas: &f" + a.bidCount() + (a.bidderName() != null ? " &8· &7líder: &f" + a.bidderName() : ""));
             if (a.buyNow() != null) lore.add("&7Comprar ya: " + Money.fmt(a.currency(), a.buyNow()));
         }
         lore.add("&7Termina en: &f" + Fmt.duration(a.ends() - System.currentTimeMillis()));
-        lore.add("&eClic para ver");
+        lore.add("");
+        lore.add(mine ? "&e▸ Clic para gestionar" : "&e▸ Clic para inspeccionar");
         return Items.withLore(base, lore);
     }
 
-    public void browse(Player p, Filter f, Runnable back) {
-        UUID id = p.getUniqueId();
-        Set<Long> favs = ConcurrentHashMap.newKeySet();
-        boolean mine = f.sellerOnly() != null;
-        Runnable self = () -> browse(p, f, back);
-        PagedMenu<Auction> m = new PagedMenu<>(pl, p, mine ? "&6Mis subastas" : "&6Casa de subastas", () -> svc.favorites(id).thenCompose(fs -> {
-            favs.clear();
-            favs.addAll(fs);
-            return svc.list(f);
-        }), a -> icon(a, favs), (a, ci) -> detail(p, a.id(), self));
-        m.pageSize(36).searchable(a -> a.itemName() + " " + a.sellerName() + " " + a.material());
-        m.extras(() -> {
+    private static final String[] CATS = {null, "blocks", "weapons", "armor", "tools", "food", "misc"};
+    private static final String[] CAT_ICON = {"NETHER_STAR", "GRASS_BLOCK", "DIAMOND_SWORD", "DIAMOND_CHESTPLATE", "DIAMOND_PICKAXE", "COOKED_BEEF", "CHEST"};
+    private static final int[] GRID = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43};
+    private static final String[] SORT_LABELS = {"Termina pronto", "Más nuevas", "Precio ascendente", "Precio descendente"};
+    private static final String[] TYPE_LABELS = {"Todos", "Compra directa", "Subastas"};
+    private static final String[] TYPES = {null, "BIN", "AUCTION"};
+
+    /** Entry point: main Auction House menu. */
+    public void hub(Player p, Runnable back) {
+        new ButtonMenu(pl, p, "&6Casa de subastas", 5, true, () -> {
             List<Btn> l = new ArrayList<>();
-            String[] cats = new String[AuctionService.CATEGORIES.length + 1];
-            cats[0] = null;
-            System.arraycopy(AuctionService.CATEGORIES, 0, cats, 1, AuctionService.CATEGORIES.length);
-            String[] types = {null, "BIN", "AUCTION"};
-            l.add(Btn.of(36, Items.of(Material.COMPASS, "&bCategoría: &f" + catName(f.category()), "&7Clic para cambiar"), () -> browse(p, f.withCategory(next(cats, f.category())), back)));
-            l.add(Btn.of(37, Items.of(Material.NAME_TAG, "&bTipo: &f" + (f.type() == null ? "Todos" : f.type().equals("BIN") ? "Compra directa" : "Subastas"), "&7Clic para cambiar"), () -> browse(p, f.withType(next(types, f.type())), back)));
-            l.add(Btn.of(38, Items.of(Material.HOPPER, "&bOrden: &f" + sortName(f.sort()), "&7Clic para cambiar"), () -> browse(p, f.withSort(next(AuctionService.SORTS, f.sort())), back)));
-            l.add(Btn.of(39, Items.of(f.favoritesOf() != null ? Material.NETHER_STAR : Material.GRAY_DYE, "&eSolo favoritos: &f" + (f.favoritesOf() != null ? "sí" : "no"), "&7Clic para alternar"),
-                    () -> browse(p, f.withFavorites(f.favoritesOf() != null ? null : id), back)));
-            if (!mine) l.add(Btn.of(41, Items.of(Material.CHEST, "&aMis subastas", "&7Tus listados activos"), () -> browse(p, new Filter(null, null, "ending", null, id), self)));
-            l.add(Btn.of(42, Items.of(Material.EMERALD, "&a&lVender objeto", "&7Pon a la venta el objeto de tu mano"), () -> sellHand(p, self)));
-            l.add(Btn.of(43, Items.of(Material.ENDER_CHEST, "&6Reclamaciones", "&7Objetos ganados, expirados o devueltos"), () -> ((EconomyModule) pl.module("economy")).menus().mailbox(p, self)));
+            l.add(Btn.of(4, Items.of(Material.GOLD_BLOCK, "&6Casa de subastas", "&7Compra y vende objetos con otros", "&7jugadores.", "",
+                    "&7Comisión de venta: &a" + pl.getConfig().getString("auction-house.commission-percent", "5") + "%",
+                    "&7Máx. publicaciones: &f" + pl.getConfig().getInt("auction-house.max-listings", 10)), () -> {}));
+            l.add(Btn.of(11, Items.of(Material.COMPASS, "&aExplorar subastas", "&7Busca objetos a la venta con", "&7categorías, filtros y orden.", "", "&e▸ Clic para explorar"), () -> browse(p, defaultFilter(), () -> hub(p, back))));
+            l.add(Btn.of(13, Items.of(Material.EMERALD, "&aVender un objeto", "&7Pon a la venta el objeto que", "&7llevas en la mano.", "", "&e▸ Clic para vender"), () -> sellHand(p, () -> hub(p, back))));
+            l.add(Btn.of(15, Items.of(Material.CHEST, "&6Mis subastas", "&7Gestiona tus publicaciones activas.", "", "&e▸ Clic para ver"), () -> browse(p, new Filter(null, null, "ending", null, p.getUniqueId()), () -> hub(p, back))));
+            l.add(Btn.of(29, Items.of(Material.NETHER_STAR, "&eFavoritos", "&7Subastas que marcaste con una estrella.", "", "&e▸ Clic para ver"), () -> browse(p, new Filter(null, null, "ending", p.getUniqueId(), null), () -> hub(p, back))));
+            l.add(Btn.of(31, Items.of(Material.ENDER_CHEST, "&dReclamaciones", "&7Objetos ganados, vencidos o devueltos", "&7y dinero pendiente de cobrar.", "", "&e▸ Clic para reclamar"), () -> ((EconomyModule) pl.module("economy")).menus().mailbox(p, () -> hub(p, back))));
+            l.add(Btn.of(33, Items.of(Material.BOOK, "&bCómo funciona", "&7▪ &fBIN&7: compra directa al precio fijado.", "&7▪ &fSubasta&7: gana la puja más alta.",
+                    "&7▪ &fAnti-sniping&7: una puja en los últimos &f" + pl.getConfig().getInt("auction-house.anti-snipe.window-seconds", 120) + "s",
+                    "&7  alarga la subasta.", "&7▪ Al vender se cobra una comisión."), () -> {}));
             return l;
-        });
-        m.back(back).load();
+        }).centerNav().back(back).open();
+    }
+
+    public void browse(Player p, Filter f, Runnable back) {
+        new Browser(p, f, back).load();
+    }
+
+    private final class Browser extends com.economycore.gui.Menu {
+        private Filter f;
+        private final Runnable back;
+        private List<Auction> all = new ArrayList<>();
+        private final Set<Long> favs = ConcurrentHashMap.newKeySet();
+        private int page;
+        private String search = "";
+
+        Browser(Player p, Filter f, Runnable back) {
+            super(pl, p, f.sellerOnly() != null ? "&6Subastas &8➜ &6Mis subastas" : "&6Subastas &8➜ &6Explorar", 6);
+            this.f = f;
+            this.back = back;
+        }
+
+        void load() {
+            UUID id = viewer.getUniqueId();
+            svc.favorites(id).thenCompose(fs -> {
+                favs.clear();
+                favs.addAll(fs);
+                return svc.list(f);
+            }).whenComplete((l, t) -> Tasks.sync(() -> {
+                if (t != null) { Msg.error(viewer, t); return; }
+                all = l == null ? new ArrayList<>() : l;
+                if (open) refresh(); else open();
+            }));
+        }
+
+        private List<Auction> filtered() {
+            if (search.isEmpty()) return all;
+            String q = search.toLowerCase();
+            List<Auction> out = new ArrayList<>();
+            for (Auction a : all) if ((a.itemName() + " " + a.sellerName() + " " + a.material()).toLowerCase().contains(q)) out.add(a);
+            return out;
+        }
+
+        @Override
+        protected void render() {
+            boolean mine = f.sellerOnly() != null;
+            List<Auction> list = filtered();
+            int pages = Math.max(1, (list.size() + GRID.length - 1) / GRID.length);
+            if (page >= pages) page = pages - 1;
+            if (page < 0) page = 0;
+            for (int i = 0; i < GRID.length && page * GRID.length + i < list.size(); i++) {
+                Auction a = list.get(page * GRID.length + i);
+                set(GRID[i], icon(a, favs, mine), ci -> detail(viewer, a.id(), () -> new Browser(viewer, f, back).load()));
+            }
+            if (list.isEmpty()) set(22, Items.of(Material.BARRIER, "&cNo hay subastas", "&7Nada coincide con los filtros", "&7actuales.", "", "&e▸ Prueba a cambiar la categoría"));
+            // categories
+            for (int i = 0; i < CATS.length; i++) {
+                final String cat = CATS[i];
+                boolean sel = java.util.Objects.equals(cat, f.category());
+                ItemStack it = Items.of(CAT_ICON[i], (sel ? "&a▶ " : "&e") + catName(cat), "&8Filtra por categoría", "", sel ? "&a✔ Seleccionada" : "&e▸ Clic para seleccionar");
+                if (sel) Items.glow(it);
+                set(1 + i, it, ci -> { f = f.withCategory(cat); page = 0; load(); });
+            }
+            // bottom bar
+            if (page > 0) set(45, Items.of(Material.ARROW, "&e◀ Anterior", "&7Página &f" + page), c -> { page--; refresh(); });
+            else set(45, Items.of(Material.GRAY_DYE, "&8◀ Anterior"));
+            if (page < pages - 1) set(53, Items.of(Material.ARROW, "&eSiguiente ▶", "&7Página &f" + (page + 2)), c -> { page++; refresh(); });
+            else set(53, Items.of(Material.GRAY_DYE, "&8Siguiente ▶"));
+            int si = Math.max(0, java.util.Arrays.asList(AuctionService.SORTS).indexOf(f.sort()));
+            List<String> sl = new ArrayList<>(List.of("&8Cambia el orden de la lista", ""));
+            sl.addAll(Items.options(SORT_LABELS, si));
+            sl.add(""); sl.add("&e▸ Clic para cambiar");
+            set(47, Items.of(Material.HOPPER, "&aOrdenar", sl), c -> { f = f.withSort(AuctionService.SORTS[(si + 1) % AuctionService.SORTS.length]); page = 0; load(); });
+            set(48, Items.of(Material.OAK_SIGN, "&bBuscar", "&7Filtro: &f" + (search.isEmpty() ? "ninguno" : search), "", "&e▸ Clic para escribir", "&e▸ Clic derecho para limpiar"), c -> {
+                if (c.right()) { search = ""; page = 0; refresh(); return; }
+                Prompt.ask(viewer, "Escribe el texto a buscar", s -> { search = s; page = 0; open(); }, this::open);
+            });
+            backButton(46);
+            closeButton(49);
+            int ti = 0;
+            for (int i = 0; i < TYPES.length; i++) if (java.util.Objects.equals(TYPES[i], f.type())) ti = i;
+            final int tIdx = ti;
+            List<String> tl = new ArrayList<>(List.of("&8Compra directa o subastas", ""));
+            tl.addAll(Items.options(TYPE_LABELS, ti));
+            tl.add(""); tl.add("&e▸ Clic para cambiar");
+            set(50, Items.of(Material.NAME_TAG, "&aTipo de venta", tl), c -> { f = f.withType(TYPES[(tIdx + 1) % TYPES.length]); page = 0; load(); });
+            boolean fav = f.favoritesOf() != null;
+            ItemStack favItem = Items.of(fav ? Material.NETHER_STAR : Material.GRAY_DYE, "&eSolo favoritos: " + (fav ? "&así" : "&cno"), "&8Muestra solo tus estrellas", "", "&e▸ Clic para alternar");
+            set(51, fav ? Items.glow(favItem) : favItem, c -> { f = f.withFavorites(fav ? null : viewer.getUniqueId()); page = 0; load(); });
+            set(52, Items.of(Material.PAPER, "&fPágina " + (page + 1) + "&8/&7" + pages, com.economycore.gui.Theme.bar(page + 1, pages, 10), "&7Resultados: &f" + list.size()));
+            fillEmpty();
+        }
     }
 
     public void detail(Player p, long id, Runnable back) {
@@ -118,34 +208,48 @@ public final class AuctionMenus {
                 boolean own = a.seller().equals(p.getUniqueId().toString());
                 boolean admin = p.hasPermission("economycore.ah.admin");
                 Runnable self = () -> detail(p, id, back);
-                new ButtonMenu(pl, p, "&6Subasta #" + id, 4, true, () -> {
+                BigDecimal purse = com.economycore.core.Ledger.cached(p.getUniqueId(), a.currency());
+                new ButtonMenu(pl, p, "&6Subasta &8➜ &6" + (a.isBin() ? "Compra directa" : "Pujas"), 6, true, () -> {
                     List<Btn> l = new ArrayList<>();
-                    l.add(Btn.of(4, icon(a, favs), () -> {}));
+                    l.add(Btn.of(13, icon(a, favs, own), () -> {}));
+                    l.add(Btn.of(11, Items.head(org.bukkit.Bukkit.getOfflinePlayer(UUID.fromString(a.seller())), "&6Vendedor", "&f" + a.sellerName(), "", "&7Termina en: &f" + Fmt.duration(a.ends() - System.currentTimeMillis())), () -> {}));
+                    if (!a.isBin()) {
+                        l.add(Btn.of(15, Items.of(Material.WRITABLE_BOOK, "&6Pujas", "&7Puja actual: " + (a.currentBid() == null ? "&8ninguna" : Money.fmt(a.currency(), a.currentBid())),
+                                "&7Número de pujas: &f" + a.bidCount(), a.bidderName() != null ? "&7Líder: &f" + a.bidderName() : null,
+                                "", "&8Una puja en los últimos segundos", "&8alarga la subasta."), () -> {}));
+                    }
                     if (!own) {
                         if (a.isBin()) {
-                            l.add(Btn.of(13, Items.of(Material.LIME_CONCRETE, "&a&lCOMPRAR AHORA", "&7Precio: " + Money.fmt(a.currency(), a.startPrice())), () ->
-                                    ConfirmMenu.ask(pl, p, "&aConfirmar compra", List.of("&7" + a.itemName() + " x" + a.amount(), "&7Precio: " + Money.fmt(a.currency(), a.startPrice())), () -> buyNow(p, id, self), self)));
+                            BigDecimal price = a.startPrice();
+                            if (purse.compareTo(price) < 0) {
+                                l.add(Btn.of(31, Items.of(Material.RED_TERRACOTTA, "&cNo tienes suficiente dinero", "&7Precio: " + Money.fmt(a.currency(), price), "&7Tu saldo: " + Money.fmt(a.currency(), purse),
+                                        "&7Te faltan: " + Money.fmt(a.currency(), price.subtract(purse))), () -> {}));
+                            } else {
+                                l.add(Btn.of(31, Items.of(Material.GOLD_BLOCK, "&6Comprar ahora", "&7Precio: " + Money.fmt(a.currency(), price), "&7Tu saldo: " + Money.fmt(a.currency(), purse), "", "&e▸ Clic para comprar"), () ->
+                                        ConfirmMenu.ask(pl, p, "&aConfirmar compra", List.of("&7" + a.itemName() + " x" + a.amount(), "&7Precio: " + Money.fmt(a.currency(), price)), () -> buyNow(p, id, self), self)));
+                            }
                         } else {
                             BigDecimal min = svc.minBid(a);
-                            l.add(Btn.of(11, Items.of(Material.LIME_STAINED_GLASS_PANE, "&aPujar mínimo", "&7Puja: " + Money.fmt(a.currency(), min)), () -> bid(p, id, min, self)));
                             BigDecimal plus = Money.scale(a.currency(), min.multiply(new BigDecimal("1.10")));
-                            l.add(Btn.of(12, Items.of(Material.YELLOW_STAINED_GLASS_PANE, "&ePujar +10%", "&7Puja: " + Money.fmt(a.currency(), plus)), () -> bid(p, id, plus, self)));
-                            l.add(Btn.of(13, Items.of(Material.WRITABLE_BOOK, "&bPuja personalizada", "&7Mínimo: " + Money.fmt(a.currency(), min)), () ->
+                            l.add(Btn.of(29, Items.of(Material.GOLD_INGOT, "&aPujar mínimo", "&7Puja: " + Money.fmt(a.currency(), min), "&7Tu saldo: " + Money.fmt(a.currency(), purse), "", "&e▸ Clic para pujar"), () -> bid(p, id, min, self)));
+                            l.add(Btn.of(30, Items.of(Material.GOLD_BLOCK, "&ePujar +10%", "&7Puja: " + Money.fmt(a.currency(), plus), "", "&e▸ Clic para pujar"), () -> bid(p, id, plus, self)));
+                            l.add(Btn.of(31, Items.of(Material.WRITABLE_BOOK, "&bPuja personalizada", "&7Mínimo: " + Money.fmt(a.currency(), min), "", "&e▸ Clic para escribir"), () ->
                                     Prompt.ask(p, "Escribe tu puja", s -> {
                                         BigDecimal v = Money.parse(s);
                                         if (v == null) { Msg.send(p, "invalid-amount"); self.run(); } else bid(p, id, v, self);
                                     }, self)));
-                            if (a.buyNow() != null) l.add(Btn.of(15, Items.of(Material.EMERALD_BLOCK, "&a&lCOMPRAR YA", "&7Precio: " + Money.fmt(a.currency(), a.buyNow())), () ->
+                            if (a.buyNow() != null) l.add(Btn.of(32, Items.of(Material.EMERALD_BLOCK, "&6Comprar ya", "&7Precio: " + Money.fmt(a.currency(), a.buyNow()), "", "&e▸ Clic para comprar"), () ->
                                     ConfirmMenu.ask(pl, p, "&aConfirmar compra", List.of("&7" + a.itemName(), "&7Precio: " + Money.fmt(a.currency(), a.buyNow())), () -> buyNow(p, id, self), self)));
                         }
                     }
-                    l.add(Btn.of(22, Items.of(favs.contains(id) ? Material.NETHER_STAR : Material.GRAY_DYE, favs.contains(id) ? "&eQuitar de favoritos" : "&eAñadir a favoritos"), () ->
-                            svc.toggleFavorite(p.getUniqueId(), id).whenComplete((r, t) -> Tasks.sync(self))));
-                    if (own || admin) l.add(Btn.of(26, Items.of(Material.TNT, "&cCancelar subasta", own ? "&7Recuperas el objeto (si no hay pujas)" : "&7Cancelación administrativa"), () ->
+                    boolean fav = favs.contains(id);
+                    ItemStack fi = Items.of(fav ? Material.NETHER_STAR : Material.GRAY_DYE, fav ? "&eQuitar de favoritos" : "&eAñadir a favoritos", "&8Marca la subasta con una estrella", "", "&e▸ Clic para alternar");
+                    l.add(Btn.of(22, fav ? Items.glow(fi) : fi, () -> svc.toggleFavorite(p.getUniqueId(), id).whenComplete((r, t) -> Tasks.sync(self))));
+                    if (own || admin) l.add(Btn.of(53, Items.of(Material.TNT, "&cCancelar subasta", own ? "&7Recuperas el objeto (si no hay pujas)." : "&7Cancelación administrativa.", "", "&c▸ Clic para cancelar"), () ->
                             ConfirmMenu.ask(pl, p, "&cCancelar subasta", List.of("&7" + a.itemName()), () ->
                                     svc.cancel(p, id, admin).whenComplete((r, t) -> Tasks.sync(() -> { if (t != null) Msg.error(p, t); else Msg.send(p, "ah-cancelled"); back.run(); })), self)));
                     return l;
-                }).back(back).open();
+                }).centerNav().back(back).open();
             }));
         }));
     }

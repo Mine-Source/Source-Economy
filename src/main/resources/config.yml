@@ -191,4 +191,5 @@ placeholders:
 gui:
   modern-colors: true   # paleta moderna (hex) para menús y mensajes; false = colores clásicos
   sounds: true
+  clickable-messages: true   # botones clicables en avisos (aceptar intercambio, reclamar, etc.)
   page-size: 45         # elementos por página en listas (múltiplo de 9, de 9 a 45)

@@ -23,7 +23,7 @@ public final class Items {
         if (meta != null) {
             meta.setDisplayName("§r" + Msg.color(name));
             List<String> l = new ArrayList<>();
-            for (String s : lore) l.add("§r" + Msg.color(s));
+            for (String s : lore) if (s != null) l.add("§r" + Msg.color(s));
             meta.setLore(l);
             meta.addItemFlags(ItemFlag.values());
             it.setItemMeta(meta);
@@ -41,7 +41,7 @@ public final class Items {
         ItemMeta meta = it.getItemMeta();
         if (meta == null) return it;
         List<String> l = meta.hasLore() && meta.getLore() != null ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
-        for (String s : extra) l.add("§r" + Msg.color(s));
+        for (String s : extra) if (s != null) l.add("§r" + Msg.color(s));
         meta.setLore(l);
         it.setItemMeta(meta);
         return it;
@@ -54,6 +54,22 @@ public final class Items {
     }
 
     public static ItemStack filler() { return pane("BLACK"); }
+
+    /** Adds the enchantment glint without showing any enchantment text. */
+    public static ItemStack glow(ItemStack it) {
+        ItemMeta meta = it.getItemMeta();
+        if (meta != null) {
+            try { meta.setEnchantmentGlintOverride(true); it.setItemMeta(meta); } catch (Throwable ignored) {}
+        }
+        return it;
+    }
+
+    /** Hypixel-style option list: the selected entry is highlighted with an arrow. */
+    public static List<String> options(String[] labels, int selected) {
+        List<String> l = new ArrayList<>();
+        for (int i = 0; i < labels.length; i++) l.add(i == selected ? "&b▶ &f" + labels[i] : "&8  " + labels[i]);
+        return l;
+    }
 
     public static ItemStack head(org.bukkit.OfflinePlayer owner, String name, String... lore) {
         ItemStack it = of(Material.PLAYER_HEAD, name, lore);

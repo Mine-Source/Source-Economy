@@ -37,23 +37,53 @@ public final class BankMenus {
     }
 
     private org.bukkit.inventory.ItemStack accountIcon(Account a) {
-        return Items.of(a.type().equals("SHARED") ? Material.ENDER_CHEST : Material.CHEST, "&e" + a.name() + " &8(" + a.id() + ")",
-                "&7Tipo: &f" + (a.type().equals("SHARED") ? "Compartida" : "Personal"), "&7Saldo: " + Money.fmt(a.currency(), a.balance()), "&7Tu rol: &f" + a.role(), "&eClic para abrir");
+        boolean shared = a.type().equals("SHARED");
+        return Items.of(shared ? Material.ENDER_CHEST : Material.GOLD_BLOCK, (shared ? "&b" : "&6") + a.name(),
+                "&8" + (shared ? "Cuenta compartida" : "Cuenta personal") + " · " + a.id(), "",
+                "&7Saldo: " + Money.fmt(a.currency(), a.balance()), "&7Tu rol: &f" + roleName(a.role()), "",
+                "&e▸ Clic para abrir");
+    }
+
+    private static String roleName(String r) {
+        return switch (r) { case "OWNER" -> "Dueño"; case "ADMIN" -> "Gestor"; default -> "Miembro"; };
     }
 
     public void main(Player p, Runnable back) {
-        boolean admin = p.hasPermission("economycore.bank.admin");
+        svc.mine(p.getUniqueId()).whenComplete((list, t) -> Tasks.sync(() -> {
+            if (t != null) { Msg.error(p, t); return; }
+            if (list.size() > 21) { pagedMain(p, back); return; }
+            boolean admin = p.hasPermission("economycore.bank.admin");
+            boolean can = p.hasPermission("economycore.bank.create");
+            Runnable self = () -> main(p, back);
+            new ButtonMenu(pl, p, "&6Banco", 6, true, () -> {
+                List<Btn> l = new ArrayList<>();
+                java.util.Map<String, BigDecimal> totals = new java.util.LinkedHashMap<>();
+                for (Account a : list) totals.merge(a.currency(), a.balance(), BigDecimal::add);
+                List<String> info = new ArrayList<>();
+                info.add("&7Guarda tu dinero a salvo y");
+                info.add("&7gana intereses con el tiempo.");
+                info.add("");
+                if (totals.isEmpty()) info.add("&7Aún no tienes cuentas.");
+                for (var e : totals.entrySet()) info.add("&7Total depositado: " + Money.fmt(e.getKey(), e.getValue()));
+                info.add("&7Cuentas: &f" + list.size() + "&8/&7" + pl.getConfig().getInt("bank.max-accounts", 5));
+                l.add(Btn.of(4, Items.head(p, "&6Banco de " + p.getName(), info.toArray(new String[0])), () -> {}));
+                int[] slots = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34};
+                for (int i = 0; i < list.size(); i++) {
+                    Account a = list.get(i);
+                    l.add(Btn.of(slots[i], accountIcon(a), () -> account(p, a.id(), self, false)));
+                }
+                l.add(Btn.of(38, Items.of(Material.GOLD_INGOT, "&6Nueva cuenta personal", "&7Una cuenta solo para ti.", "", can ? "&e▸ Clic para crear" : "&cNo tienes permiso"), () -> create(p, "PERSONAL", self)));
+                l.add(Btn.of(42, Items.of(Material.ENDER_CHEST, "&bNueva cuenta compartida", "&7Con gestores y miembros.", "", can ? "&e▸ Clic para crear" : "&cNo tienes permiso"), () -> create(p, "SHARED", self)));
+                if (admin) l.add(Btn.of(40, Items.of(Material.COMMAND_BLOCK, "&cTodas las cuentas", "&7Administración del banco.", "", "&e▸ Clic para ver"), () -> adminAll(p, self)));
+                return l;
+            }).centerNav().back(back).open();
+        }));
+    }
+
+    private void pagedMain(Player p, Runnable back) {
         Runnable self = () -> main(p, back);
         new PagedMenu<Account>(pl, p, "&6Banco", () -> svc.mine(p.getUniqueId()), this::accountIcon, (a, ci) -> account(p, a.id(), self, false))
-                .searchable(a -> a.name() + " " + a.id())
-                .extras(() -> {
-                    List<Btn> l = new ArrayList<>();
-                    boolean can = p.hasPermission("economycore.bank.create");
-                    l.add(Btn.of(47, Items.of(Material.CHEST, "&aCuenta personal", "&7Crear una cuenta personal", can ? "" : "&cSin permiso"), () -> create(p, "PERSONAL", self)));
-                    l.add(Btn.of(51, Items.of(Material.ENDER_CHEST, "&bCuenta compartida", "&7Con gestores y miembros", can ? "" : "&cSin permiso"), () -> create(p, "SHARED", self)));
-                    if (admin) l.add(Btn.of(50, Items.of(Material.COMMAND_BLOCK, "&cTodas las cuentas", "&7Administración"), () -> adminAll(p, self)));
-                    return l;
-                }).back(back).load();
+                .searchable(a -> a.name() + " " + a.id()).back(back).load();
     }
 
     private void adminAll(Player p, Runnable back) {
@@ -79,43 +109,72 @@ public final class BankMenus {
         svc.get(id, p.getUniqueId(), admin).whenComplete((a, t) -> Tasks.sync(() -> {
             if (t != null) { Msg.error(p, t); back.run(); return; }
             Runnable self = () -> account(p, id, back, admin);
-            new ButtonMenu(pl, p, "&6" + a.name() + " &8(" + a.id() + ")", 4, true, () -> {
+            boolean shared = a.type().equals("SHARED");
+            new ButtonMenu(pl, p, "&6" + (shared ? "Cuenta compartida" : "Cuenta personal") + " &8➜ &6" + a.name(), 5, true, () -> {
                 List<Btn> l = new ArrayList<>();
-                l.add(Btn.of(4, Items.of(Material.GOLD_BLOCK, "&e" + a.name(), "&7Saldo: " + Money.fmt(a.currency(), a.balance()), "&7Tipo: &f" + a.type(), "&7Rol: &f" + a.role(), "&7Intereses: " + (a.interest() ? "&aactivos" : "&cdesactivados")), () -> {}));
-                l.add(Btn.of(10, Items.of(Material.LIME_CONCRETE, "&aDepositar", "&7Tu saldo: " + Money.fmt(a.currency(), Ledger.cached(p.getUniqueId(), a.currency())), "&7Escribe 'todo' para todo"), () ->
-                        Prompt.ask(p, "Cantidad a depositar", s -> {
-                            BigDecimal v = amount(s, Ledger.cached(p.getUniqueId(), a.currency()));
-                            if (v == null || v.signum() <= 0) { Msg.send(p, "invalid-amount"); self.run(); return; }
-                            svc.deposit(p.getUniqueId(), id, v).whenComplete((r, x) -> Tasks.sync(() -> { if (x != null) Msg.error(p, x); else Msg.send(p, "bank-deposited", Money.fmt(a.currency(), v)); self.run(); }));
-                        }, self)));
+                BigDecimal purse = Ledger.cached(p.getUniqueId(), a.currency());
+                l.add(Btn.of(4, Items.of(shared ? Material.ENDER_CHEST : Material.GOLD_BLOCK, (shared ? "&b" : "&6") + a.name(),
+                        "&8" + a.id() + " · " + (shared ? "Compartida" : "Personal"), "",
+                        "&7Saldo: " + Money.fmt(a.currency(), a.balance()), "&7En tu bolsillo: " + Money.fmt(a.currency(), purse), "&7Tu rol: &f" + roleName(a.role())), () -> {}));
+                l.add(Btn.of(11, Items.of(Material.CHEST, "&aDepositar", "&7Guarda monedas en el banco para", "&7tenerlas a salvo.", "",
+                        "&7En tu bolsillo: " + Money.fmt(a.currency(), purse), "", "&e▸ Clic para depositar"), () -> amountMenu(p, a, true, self)));
                 if (a.canWithdraw() || admin) {
-                    l.add(Btn.of(12, Items.of(Material.ORANGE_CONCRETE, "&6Retirar", "&7Escribe 'todo' para todo"), () ->
-                            Prompt.ask(p, "Cantidad a retirar", s -> {
-                                BigDecimal v = amount(s, a.balance());
-                                if (v == null || v.signum() <= 0) { Msg.send(p, "invalid-amount"); self.run(); return; }
-                                svc.withdraw(p.getUniqueId(), id, v).whenComplete((r, x) -> Tasks.sync(() -> { if (x != null) Msg.error(p, x); else Msg.send(p, "bank-withdrawn", Money.fmt(a.currency(), v)); self.run(); }));
-                            }, self)));
-                    l.add(Btn.of(14, Items.of(Material.PAPER, "&bTransferir", "&7A otra cuenta (B1234) o a un jugador"), () ->
+                    l.add(Btn.of(13, Items.of(Material.DISPENSER, "&6Retirar", "&7Saca monedas de la cuenta.", "",
+                            "&7Saldo: " + Money.fmt(a.currency(), a.balance()), "", "&e▸ Clic para retirar"), () -> amountMenu(p, a, false, self)));
+                    l.add(Btn.of(15, Items.of(Material.PAPER, "&bTransferir", "&7Envía dinero a otra cuenta", "&7(ej. B1001) o a un jugador.", "", "&e▸ Clic para transferir"), () ->
                             Form.of(p).ask("to", "Destino: ID de cuenta (ej B1001) o nombre de jugador").ask("amt", "Cantidad").onCancel(self).then(f -> {
                                 BigDecimal v = amount(f.get("amt"), a.balance());
                                 if (v == null || v.signum() <= 0) { Msg.send(p, "invalid-amount"); self.run(); return; }
                                 svc.transfer(p.getUniqueId(), id, f.get("to"), v).whenComplete((r, x) -> Tasks.sync(() -> { if (x != null) Msg.error(p, x); else Msg.send(p, "bank-transferred", Money.fmt(a.currency(), v), r); self.run(); }));
                             })));
                 }
-                l.add(Btn.of(16, Items.of(Material.BOOK, "&eMovimientos", "&7Extracto de la cuenta"), () -> statement(p, id, self)));
-                if (a.type().equals("SHARED")) l.add(Btn.of(20, Items.of(Material.PLAYER_HEAD, "&dMiembros", "&7Gestores y miembros"), () -> members(p, a, self)));
-                if (admin) l.add(Btn.of(22, Items.of(Material.SUNFLOWER, "&cAlternar intereses"), () -> svc.toggleInterest(p.getName(), id).whenComplete((r, x) -> Tasks.sync(self))));
-                if (a.role().equals("OWNER") || admin) l.add(Btn.of(26, Items.of(Material.TNT, "&cCerrar cuenta", "&7El saldo vuelve al dueño"), () ->
+                l.add(Btn.of(29, Items.of(Material.MAP, "&eMovimientos recientes", "&7Consulta el extracto de la cuenta.", "", "&e▸ Clic para ver"), () -> statement(p, id, self)));
+                double rate = pl.getConfig().getDouble(shared ? "bank.interest.shared-percent" : "bank.interest.personal-percent", 0.5);
+                l.add(Btn.of(31, Items.of(Material.SUNFLOWER, "&6Intereses", "&7Tasa: &a" + rate + "% &7cada &f" + pl.getConfig().getLong("bank.interest.interval-minutes", 60) + " min",
+                        "&7Hasta un saldo de &f" + pl.getConfig().getString("bank.interest.max-balance", "1000000"), "",
+                        "&7Estado: " + (a.interest() ? "&aActivos" : "&cDesactivados"), admin ? "" : null, admin ? "&e▸ Clic para alternar" : null), () -> {
+                    if (admin) svc.toggleInterest(p.getName(), id).whenComplete((r, x) -> Tasks.sync(self));
+                }));
+                if (shared) l.add(Btn.of(33, Items.of(Material.PLAYER_HEAD, "&dMiembros", "&7Gestores y miembros de la cuenta.", "", "&e▸ Clic para gestionar"), () -> members(p, a, self)));
+                if (a.role().equals("OWNER") || admin) l.add(Btn.of(44, Items.of(Material.TNT, "&cCerrar cuenta", "&7El saldo vuelve al dueño.", "", "&c▸ Clic para cerrar"), () ->
                         ConfirmMenu.ask(pl, p, "&cCerrar " + a.name(), List.of("&7Saldo: " + Money.plain(a.currency(), a.balance()), "&7Se transfiere al dueño"), () ->
                                 svc.close(p.getUniqueId(), id, admin).whenComplete((r, x) -> Tasks.sync(() -> { if (x != null) Msg.error(p, x); back.run(); })), self)));
                 return l;
-            }).back(back).open();
+            }).centerNav().back(back).open();
+        }));
+    }
+
+    /** Hypixel-style quick amounts: all / half / custom. */
+    private void amountMenu(Player p, Account a, boolean deposit, Runnable back) {
+        BigDecimal source = deposit ? Ledger.cached(p.getUniqueId(), a.currency()) : a.balance();
+        BigDecimal half = source.divide(BigDecimal.valueOf(2), 12, java.math.RoundingMode.DOWN);
+        String verb = deposit ? "depositar" : "retirar";
+        new ButtonMenu(pl, p, "&6" + (deposit ? "Depositar" : "Retirar") + " &8➜ &6" + a.name(), 4, true, () -> {
+            List<Btn> l = new ArrayList<>();
+            l.add(Btn.of(11, Items.of(Material.CHEST, "&aTodo", "&7" + (deposit ? "Deposita todo tu bolsillo." : "Retira todo el saldo."), "",
+                    "&7Cantidad: " + Money.fmt(a.currency(), source), "", "&e▸ Clic para " + verb), () -> run(p, a, deposit, source, back)));
+            l.add(Btn.of(13, Items.of(Material.CHEST_MINECART, "&eMitad", "&7La mitad de " + (deposit ? "tu bolsillo." : "la cuenta."), "",
+                    "&7Cantidad: " + Money.fmt(a.currency(), Money.scale(a.currency(), half)), "", "&e▸ Clic para " + verb), () -> run(p, a, deposit, Money.scale(a.currency(), half), back)));
+            l.add(Btn.of(15, Items.of(Material.OAK_SIGN, "&bCantidad personalizada", "&7Escribe la cantidad en el chat.", "&8Admite 1.5k, 2m, 3b o 'todo'.", "", "&e▸ Clic para escribir"), () ->
+                    Prompt.ask(p, "Cantidad a " + verb, s -> {
+                        BigDecimal v = amount(s, source);
+                        run(p, a, deposit, v, back);
+                    }, () -> amountMenu(p, a, deposit, back))));
+            return l;
+        }).centerNav().back(back).open();
+    }
+
+    private void run(Player p, Account a, boolean deposit, BigDecimal v, Runnable back) {
+        if (v == null || v.signum() <= 0) { Msg.send(p, "invalid-amount"); back.run(); return; }
+        (deposit ? svc.deposit(p.getUniqueId(), a.id(), v) : svc.withdraw(p.getUniqueId(), a.id(), v)).whenComplete((r, x) -> Tasks.sync(() -> {
+            if (x != null) Msg.error(p, x); else Msg.send(p, deposit ? "bank-deposited" : "bank-withdrawn", Money.fmt(a.currency(), v));
+            back.run();
         }));
     }
 
     private void statement(Player p, String id, Runnable back) {
-        new PagedMenu<BankService.Line>(pl, p, "&6Movimientos " + id, () -> svc.statement(id), ln -> Items.of(ln.incoming() ? Material.LIME_DYE : Material.RED_DYE, "&f" + ln.type(),
-                "&7Monto: " + (ln.incoming() ? "&a+" : "&c-") + ln.amount().toPlainString(), "&7" + (ln.note() == null ? "" : ln.note()), "&8" + Fmt.dateFull(ln.ts())), (ln, ci) -> {}).back(back).load();
+        new PagedMenu<BankService.Line>(pl, p, "&6Banco &8➜ &6Movimientos", () -> svc.statement(id), ln -> Items.of(ln.incoming() ? Material.LIME_DYE : Material.RED_DYE, (ln.incoming() ? "&a+" : "&c-") + ln.amount().toPlainString() + " &8· &f" + ln.type(),
+                "&7" + (ln.note() == null ? "" : ln.note()), "&8" + Fmt.dateFull(ln.ts())), (ln, ci) -> {}).back(back).load();
     }
 
     private void members(Player p, Account a, Runnable back) {

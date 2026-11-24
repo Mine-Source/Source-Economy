@@ -43,7 +43,16 @@ public final class Msg {
     }
 
     public static void send(CommandSender to, String key, Object... args) {
-        if (to != null) to.sendMessage(get(key, args));
+        if (to == null) return;
+        if (to instanceof org.bukkit.entity.Player p) {
+            String tpl = cfg.getString(key, defaults.getString(key, key));
+            String auto = Clickable.autoSuffix(key);
+            if (auto != null) tpl = tpl + auto;
+            if (tpl.contains("[[") && tpl.contains("|/")) {
+                try { Clickable.send(p, prefix, tpl, args); return; } catch (Throwable ignored) { /* fall back to plain text */ }
+            }
+        }
+        to.sendMessage(get(key, args));
     }
 
     public static void error(CommandSender to, Throwable t) {

@@ -247,6 +247,8 @@ Los jugadores reciben aviso (mensaje y sonido) cuando se llena una orden del baz
 La analítica vigila la bolsa y lanza alertas (`economycore.alerts`) por *wash trading* entre dos cuentas y por precios movidos por una sola cuenta. Se ajusta en `analytics.manipulation`.
 
 ## Interfaz
+Banco, Casa de subastas y Bazaar siguen un diseño tipo Hypixel: menú principal con opciones claras, explorador con categorías arriba y rejilla central, orden y filtros con lista de opciones, depósito/retiro/compra con cantidades rápidas (todo, mitad, stack, personalizada) y confirmaciones. Los avisos importantes traen botones clicables (aceptar o rechazar un intercambio, reclamar, abrir la casa de subastas); se pueden desactivar con `gui.clickable-messages`. En `messages.yml` puedes crear los tuyos con `[[texto|/comando|ayuda al pasar el ratón]]` (solo comandos de EconomyCore).
+
 Paleta moderna (colores hex) en todos los menús y mensajes, marcos, botones de navegación con estado, sonidos y tamaño de página configurable en `gui` (`modern-colors`, `sounds`, `page-size`).
 
 ## Integración con NPCs

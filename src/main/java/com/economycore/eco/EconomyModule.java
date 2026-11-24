@@ -64,6 +64,11 @@ public final class EconomyModule extends Module {
             Currency c = a.length > 0 ? pl.currencies().get(a[0]) : pl.currencies().def();
             if (c == null) { Msg.send(s, "unknown-currency", a[0]); return; }
             menus.top((Player) s, c.id(), () -> ((Player) s).closeInventory());
+        }, (s, a) -> {
+            if (a.length != 1) return null;
+            List<String> ids = new ArrayList<>();
+            for (Currency c : pl.currencies().all()) ids.add(c.id());
+            return Cmds.filter(ids, a[0]);
         });
 
         Cmds.register(pl, "mailbox", "economycore.use", true, (s, a) -> menus.mailbox((Player) s, () -> ((Player) s).closeInventory()));

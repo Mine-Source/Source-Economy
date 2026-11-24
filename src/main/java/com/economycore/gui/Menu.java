@@ -25,7 +25,7 @@ public abstract class Menu implements InventoryHolder {
     protected Menu(EconomyCore plugin, Player viewer, String title, int rows) {
         this.plugin = plugin;
         this.viewer = viewer;
-        String t = Msg.color(title);
+        String t = com.economycore.gui.Theme.paintTitle(title);
         if (t.length() > 190) t = t.substring(0, 190);
         this.inv = Bukkit.createInventory(this, rows * 9, t);
     }
@@ -69,11 +69,6 @@ public abstract class Menu implements InventoryHolder {
     protected void fillEmpty() {
         ItemStack f = Items.filler();
         for (int i = 0; i < inv.getSize(); i++) if (inv.getItem(i) == null) inv.setItem(i, f);
-        if (inv.getSize() >= 27) {
-            ItemStack a = Items.pane("ORANGE");
-            int n = inv.getSize();
-            inv.setItem(0, a); inv.setItem(8, a); inv.setItem(n - 9, a); inv.setItem(n - 1, a);
-        }
     }
 
     protected void backButton(int slot) {

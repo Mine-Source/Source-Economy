@@ -39,10 +39,10 @@ public final class AuctionModule extends Module {
                 menus.create(p, type, price, null, hours, null);
                 return;
             }
-            menus.browse(p, AuctionMenus.defaultFilter(), p::closeInventory);
+            menus.hub(p, p::closeInventory);
         }, (s, a) -> a.length == 1 ? Cmds.filter(Arrays.asList("sell"), a[0]) : a.length == 4 ? Cmds.filter(Arrays.asList("bin", "auction"), a[3]) : null);
     }
 
     @Override
-    public void open(Player p, Runnable back) { menus.browse(p, AuctionMenus.defaultFilter(), back); }
+    public void open(Player p, Runnable back) { menus.hub(p, back); }
 }
