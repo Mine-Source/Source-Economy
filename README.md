@@ -215,13 +215,39 @@ Los textos están en `messages.yml` (español) y se pueden editar. `/eco reload`
 - `vault.enabled`: activa o desactiva el puente.
 - `vault.currency`: moneda expuesta a Vault (vacío = la moneda por defecto).
 - `vault.force-priority` (por defecto `true`): desregistra a cualquier otro proveedor de economía en Vault, como Essentials, para que EconomyCore sea siempre el activo.
-- Los bancos de Vault no están soportados.
+- Los **bancos de Vault** están soportados: `createBank`, `deleteBank`, `bankBalance`, `bankHas`, `bankDeposit`, `bankWithdraw`, `isBankOwner` e `isBankMember` trabajan sobre las cuentas compartidas de `/bank`, así que plugins de clanes o ciudades usan tu banco.
 
 Esto solo afecta a lo que pasa por Vault. Si otro plugin trae comandos con el mismo nombre (`/pay`, `/balance`), desactívalos en ese plugin.
 
 **API de Bukkit.** `EconomyAPI` se registra en el `ServicesManager` para que otros plugins consulten y muevan dinero sin pasar por Vault.
 
 ---
+
+## PlaceholderAPI
+Si PlaceholderAPI está instalado se registra la expansión `economycore` (se refresca en segundo plano cada `placeholders.refresh-seconds`):
+
+| Placeholder | Resultado |
+|---|---|
+| `%economycore_balance%`, `_balance_formatted`, `_balance_compact` | Saldo en la moneda por defecto |
+| `%economycore_balance_<moneda>%` (+ `_formatted` / `_compact`) | Saldo en otra moneda |
+| `%economycore_rank%`, `%economycore_rank_<moneda>%` | Puesto en el ranking de riqueza |
+| `%economycore_top_<n>_name%`, `_top_<n>_balance%` (+ `_formatted`) | Top de jugadores (también `top_<moneda>_<n>_...`) |
+| `%economycore_stock_<TICKER>_price%`, `_prev`, `_change`, `_volume` | Datos de una acción |
+| `%economycore_index%` | Índice de la bolsa |
+| `%economycore_treasury%`, `%economycore_treasury_<moneda>%` | Saldo de la tesorería |
+| `%economycore_symbol%` | Símbolo de la moneda por defecto |
+
+## Sumideros de dinero
+Módulo **Sumideros** (`/eco` → Sumideros, valores editables en el juego y por defecto en `config.yml` → `sinks`): tarifa de yunque por nivel, mantenimiento diario de tiendas de jugador y de empresas de jugador, y decaimiento por inactividad sobre saldos grandes. El dinero se destruye (`BURN`) o va a la tesorería (`TREASURY`). Permiso de exención del yunque: `economycore.sinks.bypass`.
+
+## Notificaciones
+Los jugadores reciben aviso (mensaje y sonido) cuando se llena una orden del bazaar o de la bolsa, los superan en una subasta, venden o ganan una subasta, cobran salario o dividendos. Si están desconectados, el aviso queda guardado y se entrega al entrar.
+
+## Detección de manipulación
+La analítica vigila la bolsa y lanza alertas (`economycore.alerts`) por *wash trading* entre dos cuentas y por precios movidos por una sola cuenta. Se ajusta en `analytics.manipulation`.
+
+## Interfaz
+Paleta moderna (colores hex) en todos los menús y mensajes, marcos, botones de navegación con estado, sonidos y tamaño de página configurable en `gui` (`modern-colors`, `sounds`, `page-size`).
 
 ## Integración con NPCs
 

@@ -26,7 +26,7 @@ public abstract class Menu implements InventoryHolder {
         this.plugin = plugin;
         this.viewer = viewer;
         String t = Msg.color(title);
-        if (t.length() > 60) t = t.substring(0, 60);
+        if (t.length() > 190) t = t.substring(0, 190);
         this.inv = Bukkit.createInventory(this, rows * 9, t);
     }
 
@@ -69,14 +69,19 @@ public abstract class Menu implements InventoryHolder {
     protected void fillEmpty() {
         ItemStack f = Items.filler();
         for (int i = 0; i < inv.getSize(); i++) if (inv.getItem(i) == null) inv.setItem(i, f);
+        if (inv.getSize() >= 27) {
+            ItemStack a = Items.pane("ORANGE");
+            int n = inv.getSize();
+            inv.setItem(0, a); inv.setItem(8, a); inv.setItem(n - 9, a); inv.setItem(n - 1, a);
+        }
     }
 
     protected void backButton(int slot) {
-        if (parent != null) set(slot, Items.of(Material.ARROW, "&e« Volver"), c -> parent.run());
+        if (parent != null) set(slot, Items.of(Material.ARROW, "&e◀ Volver", "&8Regresa al menú anterior"), c -> parent.run());
     }
 
     protected void closeButton(int slot) {
-        set(slot, Items.of(Material.BARRIER, "&cCerrar"), c -> viewer.closeInventory());
+        set(slot, Items.of(Material.BARRIER, "&c✖ Cerrar", "&8Cierra este menú"), c -> viewer.closeInventory());
     }
 
     public void handleTop(ClickInfo ci) {
@@ -84,7 +89,12 @@ public abstract class Menu implements InventoryHolder {
         if (now - lastClick < 120) return;
         lastClick = now;
         Consumer<ClickInfo> a = actions.get(ci.slot());
-        if (a != null) a.accept(ci);
+        if (a != null) {
+            if (plugin.getConfig().getBoolean("gui.sounds", true)) {
+                try { viewer.playSound(viewer.getLocation(), "ui.button.click", 0.4f, 1.4f); } catch (Throwable ignored) {}
+            }
+            a.accept(ci);
+        }
     }
 
     /** Clicks in the player's own inventory while this menu is open. */

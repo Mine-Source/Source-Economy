@@ -33,13 +33,15 @@ public final class JoinListener implements Listener {
                 }
             }
             return null;
-        }).whenComplete((r, t) -> Tasks.sync(() -> { if (p.isOnline()) Mailbox.deliver(p); }));
+        }).whenComplete((r, t) -> Tasks.sync(() -> { if (p.isOnline()) { Mailbox.deliver(p); Notify.flush(p); } }));
     }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
         String prefix = "PLAYER:" + e.getPlayer().getUniqueId() + ":";
         Ledger.CACHE.keySet().removeIf(k -> k.startsWith(prefix));
+        String uid = e.getPlayer().getUniqueId().toString();
+        pl.db().tx(tx -> { Sql.exec(tx, "UPDATE players SET last_seen=? WHERE uuid=?", System.currentTimeMillis(), uid); return null; });
     }
 
     public void prepareAll() { for (Player p : Bukkit.getOnlinePlayers()) prepare(p); }

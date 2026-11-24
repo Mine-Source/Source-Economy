@@ -20,6 +20,9 @@ public final class AnalyticsModule extends Module {
         menus = new AnalyticsMenus(pl, svc);
         long t = Math.max(1, pl.getConfig().getLong("analytics.snapshot-minutes", 10)) * 1200L;
         pl.track(Tasks.timer(600L, t, svc::snapshot));
+        Surveillance sv = new Surveillance(pl);
+        long st = Math.max(1, pl.getConfig().getLong("analytics.manipulation.interval-minutes", 5)) * 1200L;
+        pl.track(Tasks.timer(1200L, st, sv::run));
         Cmds.register(pl, "ecostats", "economycore.use", true, (s, a) -> open((Player) s, ((Player) s)::closeInventory));
     }
 

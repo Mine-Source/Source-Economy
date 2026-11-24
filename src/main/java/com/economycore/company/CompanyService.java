@@ -11,6 +11,7 @@ import com.economycore.core.Inv;
 import com.economycore.core.Ledger;
 import com.economycore.core.Mailbox;
 import com.economycore.core.Money;
+import com.economycore.core.Notify;
 import com.economycore.core.Msg;
 import com.economycore.core.Players;
 import com.economycore.core.Sql;
@@ -354,7 +355,7 @@ public final class CompanyService {
             }
             if (!c.ceo().isEmpty()) {
                 UUID ceo = UUID.fromString(c.ceo());
-                tx.afterCommit(() -> { Player cp = Bukkit.getPlayer(ceo); if (cp != null) Msg.send(cp, "company-sale", c.name(), pr.name(), qty, Money.fmt(c.currency(), st.net())); });
+                Notify.to(tx, ceo, "company-sale", c.name(), pr.name(), qty, Money.fmt(c.currency(), st.net()));
             }
             return new BuyResult(total, c.currency(), pr.name());
         });
@@ -388,7 +389,7 @@ public final class CompanyService {
                         Ledger.settle(tx, Acct.company(c.id()), Acct.player(mu), c.currency(), m.salary(), BigDecimal.ZERO, "INCOME", mu, "SALARY", c.name());
                         book(tx, c.id(), "SALARY", m.salary().negate(), m.name());
                         paid = paid.add(m.salary());
-                        tx.afterCommit(() -> { Player pp = Bukkit.getPlayer(mu); if (pp != null) Msg.send(pp, "company-salary", Money.fmt(c.currency(), m.salary()), c.name()); });
+                        Notify.to(tx, mu, "company-salary", Money.fmt(c.currency(), m.salary()), c.name());
                     } else unpaid = unpaid.add(m.salary());
                 }
                 Sql.exec(tx, "INSERT INTO payroll_log(company,ts,paid,unpaid,employees) VALUES(?,?,?,?,?)", c.id(), System.currentTimeMillis(), paid, unpaid, ms.size());
@@ -424,7 +425,7 @@ public final class CompanyService {
             UUID hu = UUID.fromString(h[0]);
             Ledger.settle(tx, Acct.company(c.id()), Acct.player(hu), c.currency(), amt, BigDecimal.ZERO, "INCOME", hu, "DIVIDEND", c.ticker());
             n++;
-            tx.afterCommit(() -> { Player pp = Bukkit.getPlayer(hu); if (pp != null) Msg.send(pp, "dividend-received", Money.fmt(c.currency(), amt), c.ticker()); });
+            Notify.to(tx, hu, "dividend-received", Money.fmt(c.currency(), amt), c.ticker());
         }
         book(tx, c.id(), "DIVIDEND", total.negate(), "dividendo " + perShare.stripTrailingZeros().toPlainString() + "/acción");
         Sql.exec(tx, "INSERT INTO dividends(company,ts,per_share,total,holders) VALUES(?,?,?,?,?)", c.id(), System.currentTimeMillis(), perShare, total, n);

@@ -7,6 +7,7 @@ import com.economycore.core.EconomyCore;
 import com.economycore.core.Inv;
 import com.economycore.core.Mailbox;
 import com.economycore.core.Money;
+import com.economycore.core.Notify;
 import com.economycore.core.Msg;
 import com.economycore.core.OrderBook;
 import com.economycore.core.OrderBook.Level;
@@ -52,12 +53,8 @@ public final class BazaarService {
             @Override public void onFill(Tx tx, String product, UUID buyer, UUID seller, BigDecimal price, int qty) throws SQLException {
                 Sql.exec(tx, "INSERT INTO bazaar_trades(ts,product,buyer,seller,price,qty) VALUES(?,?,?,?,?,?)", System.currentTimeMillis(), product, buyer, seller, price, qty);
                 String cur = cur(product);
-                tx.afterCommit(() -> {
-                    Player b = Bukkit.getPlayer(buyer);
-                    Player s = Bukkit.getPlayer(seller);
-                    if (b != null) Msg.send(b, "bazaar-fill-buy", qty, Inv.pretty(mat(product)), Money.fmt(cur, price));
-                    if (s != null) Msg.send(s, "bazaar-fill-sell", qty, Inv.pretty(mat(product)), Money.fmt(cur, price));
-                });
+                Notify.to(tx, buyer, "bazaar-fill-buy", qty, Inv.pretty(mat(product)), Money.fmt(cur, price));
+                Notify.to(tx, seller, "bazaar-fill-sell", qty, Inv.pretty(mat(product)), Money.fmt(cur, price));
             }
         }, this::cur, () -> Money.dec(pl.getConfig().getString("bazaar.commission-percent", "1.25"), BigDecimal.ZERO),
                 () -> pl.getConfig().getInt("bazaar.max-orders", 28), "BAZAAR");

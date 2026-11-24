@@ -26,11 +26,13 @@ public class PagedMenu<T> extends Menu {
     private Function<T, String> searchText;
     private Supplier<List<Btn>> extras;
     private String subtitle = "";
-    private int perPage = 45;
+    private int perPage;
 
     public PagedMenu(EconomyCore pl, Player p, String title, Supplier<CompletableFuture<List<T>>> loader,
                      Function<T, ItemStack> icon, BiConsumer<T, ClickInfo> click) {
         super(pl, p, title, 6);
+        int cfg = pl.getConfig().getInt("gui.page-size", 45);
+        this.perPage = Math.max(9, Math.min(45, cfg - cfg % 9));
         this.loader = loader;
         this.icon = icon;
         this.click = click;
@@ -77,18 +79,28 @@ public class PagedMenu<T> extends Menu {
         }
         ItemStack f = Items.filler();
         for (int i = 45; i < 54; i++) inv.setItem(i, f);
-        set(45, Items.of(Material.ARROW, "&ePágina anterior"), c -> { if (page > 0) { page--; refresh(); } });
-        set(53, Items.of(Material.ARROW, "&ePágina siguiente"), c -> { if (page < pages - 1) { page++; refresh(); } });
-        set(49, Items.of(Material.PAPER, "&fPágina " + (page + 1) + "/" + pages,
-                "&7Resultados: &f" + list.size() + (all.size() != list.size() ? "&7 de " + all.size() : ""), subtitle.isEmpty() ? "" : subtitle));
+        if (page > 0) set(45, Items.of(Material.ARROW, "&e◀ Anterior", "&7Ir a la página &f" + page), c -> { page--; flip(); });
+        else set(45, Items.of(Material.GRAY_DYE, "&8◀ Anterior", "&8Estás en la primera página"));
+        if (page < pages - 1) set(53, Items.of(Material.ARROW, "&eSiguiente ▶", "&7Ir a la página &f" + (page + 2)), c -> { page++; flip(); });
+        else set(53, Items.of(Material.GRAY_DYE, "&8Siguiente ▶", "&8Estás en la última página"));
+        set(49, Items.of(Material.PAPER, "&f&lPágina " + (page + 1) + "&8/&7" + pages,
+                Theme.bar(page + 1, pages, 10),
+                "&7Resultados: &f" + list.size() + (all.size() != list.size() ? "&7 de &f" + all.size() : ""), subtitle.isEmpty() ? "" : subtitle));
         if (searchText != null) {
-            set(48, Items.of(Material.COMPASS, "&bBuscar", "&7Filtro: &f" + (search.isEmpty() ? "ninguno" : search), "&eClic para escribir"), c ->
+            set(48, Items.of(Material.COMPASS, "&b🔍 Buscar", "&7Filtro: &f" + (search.isEmpty() ? "ninguno" : search), "", "&e▸ Clic para escribir"), c ->
                     Prompt.ask(viewer, "Escribe el texto a buscar", s -> { search = s; page = 0; open(); }, this::open));
-            set(50, Items.of(Material.HOPPER, "&bLimpiar filtro"), c -> { search = ""; page = 0; refresh(); });
+            set(50, Items.of(Material.HOPPER, "&bLimpiar filtro", "&8Quita la búsqueda actual"), c -> { search = ""; page = 0; refresh(); });
         }
         backButton(46);
         closeButton(52);
         if (extras != null) for (Btn b : extras.get()) set(b.slot(), b.item(), b.action());
+    }
+
+    private void flip() {
+        if (plugin.getConfig().getBoolean("gui.sounds", true)) {
+            try { viewer.playSound(viewer.getLocation(), "item.book.page_turn", 0.6f, 1.0f); } catch (Throwable ignored) {}
+        }
+        refresh();
     }
 
     public void reset() { page = 0; search = ""; }

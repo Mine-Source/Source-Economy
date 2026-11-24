@@ -4,6 +4,9 @@ import com.economycore.core.Acct;
 import com.economycore.core.EconomyCore;
 import com.economycore.core.Ledger;
 import com.economycore.core.Money;
+import com.economycore.core.Sql;
+import com.economycore.core.Tasks;
+import java.util.concurrent.TimeUnit;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -31,6 +34,9 @@ public final class VaultBridge implements InvocationHandler {
     private Class<?> typeClass;
     private Class<Object> svc;
     private Object proxy;
+    private final Map<String, String> banks = new ConcurrentHashMap<>();   // lower(name) -> id
+    private final Map<String, String> bankCur = new ConcurrentHashMap<>(); // id -> currency
+    private final Map<String, BigDecimal> bankPending = new ConcurrentHashMap<>();
 
     private VaultBridge(EconomyCore pl) { this.pl = pl; }
 
@@ -59,6 +65,8 @@ public final class VaultBridge implements InvocationHandler {
                 }, pl);
                 b.enforce();
             }
+            b.refreshBanks();
+            pl.track(Tasks.timer(1200L, 1200L, b::refreshBanks));
             pl.getLogger().info("Vault detectado: EconomyCore registrado como proveedor de economía.");
         } catch (Throwable t) {
             pl.getLogger().log(Level.WARNING, "No se pudo registrar el puente de Vault", t);
@@ -168,6 +176,119 @@ public final class VaultBridge implements InvocationHandler {
         return resp(d, av.add(a).doubleValue(), "SUCCESS", null);
     }
 
+
+    // ---------------------------------------------------------------- banks
+
+    private void refreshBanks() {
+        pl.db().tx(tx -> {
+            Map<String, String> n = new java.util.HashMap<>();
+            Map<String, String> c = new java.util.HashMap<>();
+            for (String[] r : Sql.list(tx, "SELECT id,name,currency FROM bank_accounts", rs -> new String[]{rs.getString(1), rs.getString(2), rs.getString(3)})) {
+                n.put(r[1].toLowerCase(), r[0]);
+                c.put(r[0], r[2]);
+                Ledger.CACHE.put(Acct.bank(r[0]).key(r[2]), Ledger.bal(tx, Acct.bank(r[0]), r[2]));
+            }
+            banks.keySet().retainAll(n.keySet()); banks.putAll(n);
+            bankCur.keySet().retainAll(c.keySet()); bankCur.putAll(c);
+            return null;
+        });
+    }
+
+    private <T> T block(java.util.concurrent.CompletableFuture<T> f) {
+        try { return f.get(3, TimeUnit.SECONDS); } catch (Throwable t) { return null; }
+    }
+
+    private BigDecimal bankBal(String id) {
+        BigDecimal b = Ledger.CACHE.get(Acct.bank(id).key(bankCur.get(id)));
+        return b == null ? BigDecimal.ZERO : b;
+    }
+
+    private BigDecimal bankAvail(String id) { return bankBal(id).subtract(bankPending.getOrDefault(id, BigDecimal.ZERO)); }
+
+    private Object createBank(String name, OfflinePlayer owner) {
+        if (owner == null) return resp(0, 0, "FAILURE", "Jugador no encontrado");
+        if (name == null || name.isBlank() || name.length() > 32) return resp(0, 0, "FAILURE", "Nombre inválido");
+        if (banks.containsKey(name.toLowerCase())) return resp(0, 0, "FAILURE", "Ya existe un banco con ese nombre");
+        String c = cur();
+        String ownerName = owner.getName() == null ? owner.getUniqueId().toString() : owner.getName();
+        String id = block(pl.db().tx(tx -> {
+            if (Sql.count(tx, "SELECT COUNT(*) FROM bank_accounts WHERE LOWER(name)=LOWER(?)", name) > 0) throw new com.economycore.core.EcoException("bank-exists");
+            Long mx = Sql.one(tx, "SELECT MAX(CAST(SUBSTR(id,2) AS INTEGER)) FROM bank_accounts", rs -> rs.getLong(1));
+            String nid = "B" + ((mx == null || mx < 1000 ? 1000 : mx) + 1);
+            Sql.exec(tx, "INSERT INTO bank_accounts(id,name,type,owner,currency,created) VALUES(?,?,'SHARED',?,?,?)", nid, name, owner.getUniqueId().toString(), c, System.currentTimeMillis());
+            Sql.exec(tx, "INSERT INTO bank_members(account,uuid,name,role) VALUES(?,?,?,'OWNER')", nid, owner.getUniqueId().toString(), ownerName);
+            Ledger.set(tx, Acct.bank(nid), c, BigDecimal.ZERO);
+            return nid;
+        }));
+        if (id == null) return resp(0, 0, "FAILURE", "No se pudo crear el banco");
+        banks.put(name.toLowerCase(), id);
+        bankCur.put(id, c);
+        return resp(0, 0, "SUCCESS", null);
+    }
+
+    private Object deleteBank(String name) {
+        String id = banks.get(name == null ? "" : name.toLowerCase());
+        if (id == null) return resp(0, 0, "FAILURE", "Banco no encontrado");
+        String c = bankCur.get(id);
+        BigDecimal bal = bankBal(id);
+        Boolean ok = block(pl.db().tx(tx -> {
+            BigDecimal b = Ledger.bal(tx, Acct.bank(id), c);
+            if (b.signum() > 0) Ledger.transfer(tx, Acct.bank(id), Acct.SYSTEM, c, b, "VAULT_BANK_CLOSE", id);
+            Sql.exec(tx, "DELETE FROM bank_members WHERE account=?", id);
+            Sql.exec(tx, "DELETE FROM bank_accounts WHERE id=?", id);
+            return true;
+        }));
+        if (ok == null) return resp(0, bal.doubleValue(), "FAILURE", "No se pudo eliminar el banco");
+        banks.remove(name.toLowerCase());
+        bankCur.remove(id);
+        return resp(0, 0, "SUCCESS", null);
+    }
+
+    private Object bankBalance(String name) {
+        String id = banks.get(name == null ? "" : name.toLowerCase());
+        if (id == null) return resp(0, 0, "FAILURE", "Banco no encontrado");
+        return resp(0, bankAvail(id).doubleValue(), "SUCCESS", null);
+    }
+
+    private Object bankHas(String name, double d) {
+        String id = banks.get(name == null ? "" : name.toLowerCase());
+        if (id == null) return resp(0, 0, "FAILURE", "Banco no encontrado");
+        BigDecimal av = bankAvail(id);
+        return av.compareTo(amt(d)) >= 0 ? resp(d, av.doubleValue(), "SUCCESS", null) : resp(0, av.doubleValue(), "FAILURE", "Fondos insuficientes");
+    }
+
+    private Object bankMove(String name, double d, boolean withdraw) {
+        String id = banks.get(name == null ? "" : name.toLowerCase());
+        if (id == null) return resp(0, 0, "FAILURE", "Banco no encontrado");
+        if (d < 0 || Double.isNaN(d) || Double.isInfinite(d)) return resp(0, 0, "FAILURE", "Cantidad inválida");
+        String c = bankCur.get(id);
+        BigDecimal a = Money.scale(c, BigDecimal.valueOf(d));
+        BigDecimal av = bankAvail(id);
+        if (a.signum() == 0) return resp(d, av.doubleValue(), "SUCCESS", null);
+        if (withdraw) {
+            if (av.compareTo(a) < 0) return resp(0, av.doubleValue(), "FAILURE", "Fondos insuficientes");
+            bankPending.merge(id, a, BigDecimal::add);
+        }
+        pl.db().tx(tx -> {
+            if (withdraw) Ledger.transfer(tx, Acct.bank(id), Acct.SYSTEM, c, a, "VAULT_BANK_WITHDRAW", id);
+            else Ledger.transfer(tx, Acct.SYSTEM, Acct.bank(id), c, a, "VAULT_BANK_DEPOSIT", id);
+            return null;
+        }).whenComplete((r, t) -> {
+            if (withdraw) bankPending.compute(id, (k, v) -> { BigDecimal n = v == null ? BigDecimal.ZERO : v.subtract(a); return n.signum() <= 0 ? null : n; });
+            if (t != null) pl.getLogger().warning("Vault bank op failed for " + id + ": " + t.getMessage());
+        });
+        return resp(d, (withdraw ? av.subtract(a) : av.add(a)).doubleValue(), "SUCCESS", null);
+    }
+
+    private Object bankRole(String name, OfflinePlayer p, boolean ownerOnly) {
+        String id = banks.get(name == null ? "" : name.toLowerCase());
+        if (id == null || p == null) return resp(0, 0, "FAILURE", "Banco o jugador no encontrado");
+        Long n = block(pl.db().tx(tx -> Sql.count(tx, ownerOnly
+                ? "SELECT COUNT(*) FROM bank_members WHERE account=? AND uuid=? AND role='OWNER'"
+                : "SELECT COUNT(*) FROM bank_members WHERE account=? AND uuid=?", id, p.getUniqueId().toString())));
+        return resp(0, 0, n != null && n > 0 ? "SUCCESS" : "FAILURE", null);
+    }
+
     @Override
     public Object invoke(Object proxy, Method m, Object[] a) {
         String n = m.getName();
@@ -177,7 +298,7 @@ public final class VaultBridge implements InvocationHandler {
             case "equals": return a != null && a.length == 1 && proxy == a[0];
             case "isEnabled": return pl.isEnabled();
             case "getName": return "EconomyCore";
-            case "hasBankSupport": return false;
+            case "hasBankSupport": return true;
             case "fractionalDigits": return pl.currencies().getOrDefault(cur()).decimals();
             case "format": return Money.plain(cur(), amt((Double) a[0]));
             case "currencyNamePlural":
@@ -194,7 +315,15 @@ public final class VaultBridge implements InvocationHandler {
             }
             case "withdrawPlayer": return withdraw(player(a[0]), amountOf(a));
             case "depositPlayer": return deposit(player(a[0]), amountOf(a));
-            case "getBanks": return Collections.emptyList();
+            case "getBanks": return new java.util.ArrayList<>(banks.keySet());
+            case "createBank": return createBank((String) a[0], player(a[1]));
+            case "deleteBank": return deleteBank((String) a[0]);
+            case "bankBalance": return bankBalance((String) a[0]);
+            case "bankHas": return bankHas((String) a[0], (Double) a[1]);
+            case "bankWithdraw": return bankMove((String) a[0], (Double) a[1], true);
+            case "bankDeposit": return bankMove((String) a[0], (Double) a[1], false);
+            case "isBankOwner": return bankRole((String) a[0], player(a[1]), true);
+            case "isBankMember": return bankRole((String) a[0], player(a[1]), false);
             default:
                 if (n.startsWith("bank") || n.endsWith("Bank") || n.startsWith("isBank")) {
                     if (m.getReturnType() == boolean.class) return false;

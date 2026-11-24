@@ -94,6 +94,10 @@ final class Migrations {
             "CREATE TABLE IF NOT EXISTS stock_index(ts INTEGER PRIMARY KEY, value TEXT, volume INTEGER)",
             "CREATE TABLE IF NOT EXISTS dividends(id INTEGER PRIMARY KEY AUTOINCREMENT, company TEXT, ts INTEGER, per_share TEXT, total TEXT, holders INTEGER)",
             "CREATE TABLE IF NOT EXISTS payroll_log(id INTEGER PRIMARY KEY AUTOINCREMENT, company TEXT, ts INTEGER, paid TEXT, unpaid TEXT, employees INTEGER)"
+        },
+        {
+            "CREATE TABLE IF NOT EXISTS notifications(id INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, ts INTEGER, key TEXT, args TEXT)",
+            "CREATE INDEX IF NOT EXISTS idx_notif_uuid ON notifications(uuid)"
         }
     };
 

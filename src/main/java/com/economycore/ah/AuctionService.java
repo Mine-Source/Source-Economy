@@ -8,6 +8,7 @@ import com.economycore.core.Inv;
 import com.economycore.core.Ledger;
 import com.economycore.core.Mailbox;
 import com.economycore.core.Money;
+import com.economycore.core.Notify;
 import com.economycore.core.Msg;
 import com.economycore.core.Sql;
 import com.economycore.core.Tx;
@@ -155,11 +156,7 @@ public final class AuctionService {
             BigDecimal amt = Money.scale(a.currency(), amount);
             if (a.bidder() != null) {
                 Ledger.transfer(tx, ESCROW, Acct.player(a.bidder()), a.currency(), a.currentBid(), "AH_REFUND", "outbid #" + a.id());
-                String prev = a.bidder();
-                tx.afterCommit(() -> {
-                    Player pp = Bukkit.getPlayer(UUID.fromString(prev));
-                    if (pp != null) Msg.send(pp, "ah-outbid", a.itemName(), Money.fmt(a.currency(), amt));
-                });
+                Notify.to(tx, UUID.fromString(a.bidder()), "ah-outbid", a.itemName(), Money.fmt(a.currency(), amt));
             }
             Ledger.transfer(tx, Acct.player(id), ESCROW, a.currency(), amt, "AH_BID", "bid #" + a.id());
             long ends = a.ends();
@@ -189,10 +186,7 @@ public final class AuctionService {
         Ledger.Settlement st = Ledger.settle(tx, Acct.player(buyer), Acct.player(seller), a.currency(), price, commission, "INCOME", seller, "AH_SALE", "#" + a.id() + " " + a.itemName());
         Mailbox.add(tx, buyer, Inv.decodeOr(a.itemData(), a.material()), a.amount(), "ah:" + a.itemName());
         Sql.exec(tx, "UPDATE auctions SET state='SOLD', bidder=?, bidder_name=?, current_bid=?, ends=? WHERE id=?", buyer, buyerName, price, now, a.id());
-        tx.afterCommit(() -> {
-            Player sp = Bukkit.getPlayer(seller);
-            if (sp != null) Msg.send(sp, "ah-sold", a.itemName(), Money.fmt(a.currency(), st.net()), buyerName);
-        });
+        Notify.to(tx, seller, "ah-sold", a.itemName(), Money.fmt(a.currency(), st.net()), buyerName);
         return new BidResult(price, true, now);
     }
 
@@ -238,18 +232,14 @@ public final class AuctionService {
                 if (a.bidder() == null) {
                     Mailbox.add(tx, seller, Inv.decodeOr(a.itemData(), a.material()), a.amount(), "ah-expired");
                     Sql.exec(tx, "UPDATE auctions SET state='EXPIRED' WHERE id=?", a.id());
-                    tx.afterCommit(() -> { Player sp = Bukkit.getPlayer(seller); if (sp != null) Msg.send(sp, "ah-expired", a.itemName()); });
+                    Notify.to(tx, seller, "ah-expired", a.itemName());
                 } else {
                     UUID winner = UUID.fromString(a.bidder());
                     Ledger.Settlement st = Ledger.settle(tx, ESCROW, Acct.player(seller), a.currency(), a.currentBid(), commission, "INCOME", seller, "AH_SALE", "#" + a.id() + " " + a.itemName());
                     Mailbox.add(tx, winner, Inv.decodeOr(a.itemData(), a.material()), a.amount(), "ah:" + a.itemName());
                     Sql.exec(tx, "UPDATE auctions SET state='SOLD' WHERE id=?", a.id());
-                    tx.afterCommit(() -> {
-                        Player sp = Bukkit.getPlayer(seller);
-                        if (sp != null) Msg.send(sp, "ah-sold", a.itemName(), Money.fmt(a.currency(), st.net()), a.bidderName());
-                        Player wp = Bukkit.getPlayer(winner);
-                        if (wp != null) Msg.send(wp, "ah-won", a.itemName(), Money.fmt(a.currency(), a.currentBid()));
-                    });
+                    Notify.to(tx, seller, "ah-sold", a.itemName(), Money.fmt(a.currency(), st.net()), a.bidderName());
+                    Notify.to(tx, winner, "ah-won", a.itemName(), Money.fmt(a.currency(), a.currentBid()));
                 }
             }
             return null;

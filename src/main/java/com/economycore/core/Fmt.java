@@ -25,7 +25,7 @@ public final class Fmt {
     public static String bar(double v, int len) {
         v = Math.max(0, Math.min(1, v));
         int n = (int) Math.round(v * len);
-        return "§a" + "█".repeat(n) + "§8" + "█".repeat(len - n);
+        return com.economycore.gui.Theme.paint("&a") + "█".repeat(n) + com.economycore.gui.Theme.paint("&8") + "█".repeat(len - n);
     }
 
     public static String spark(double[] vals) {
@@ -33,7 +33,7 @@ public final class Fmt {
         String chars = "▁▂▃▄▅▆▇█";
         double min = Double.MAX_VALUE, max = -Double.MAX_VALUE;
         for (double v : vals) { min = Math.min(min, v); max = Math.max(max, v); }
-        StringBuilder sb = new StringBuilder("§b");
+        StringBuilder sb = new StringBuilder(com.economycore.gui.Theme.paint("&b"));
         for (double v : vals) {
             int i = max == min ? 3 : (int) Math.round((v - min) / (max - min) * 7);
             sb.append(chars.charAt(i));

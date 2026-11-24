@@ -97,6 +97,9 @@ permissions:
   economycore.alerts:
     description: Receive economy alerts
     default: op
+  economycore.sinks.bypass:
+    description: Exempt from the anvil fee
+    default: false
   economycore.tax.exempt:
     description: Exempt from taxes
     default: false

@@ -91,6 +91,7 @@ public final class EconomyCore extends JavaPlugin {
         all.add(new StockModule());
         all.add(new TreasuryModule());
         all.add(new AnalyticsModule());
+        all.add(new com.economycore.sinks.SinksModule());
         for (Module m : all) {
             m.bind(this);
             if (!getConfig().getBoolean("modules." + m.id(), true) && !m.id().equals("economy")) continue;
@@ -106,6 +107,7 @@ public final class EconomyCore extends JavaPlugin {
 
         getServer().getServicesManager().register(EconomyAPI.class, new EconomyApiImpl(this), this, ServicePriority.Normal);
         com.economycore.api.VaultBridge.tryRegister(this);
+        com.economycore.api.Placeholders.tryRegister(this);
         joinListener.prepareAll();
 
         if (getConfig().getBoolean("database.backup.enabled", true)) {

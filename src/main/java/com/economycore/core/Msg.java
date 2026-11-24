@@ -21,10 +21,11 @@ public final class Msg {
             defaults = YamlConfiguration.loadConfiguration(r);
         } catch (Exception ignored) {}
         prefix = cfg.getString("prefix", "&6[Eco] &7");
+        com.economycore.gui.Theme.enabled = pl.getConfig().getBoolean("gui.modern-colors", true);
     }
 
     public static String color(String s) {
-        return s == null ? "" : ChatColor.translateAlternateColorCodes('&', s);
+        return s == null ? "" : com.economycore.gui.Theme.paint(s);
     }
 
     public static String strip(String s) {

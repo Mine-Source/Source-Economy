@@ -13,6 +13,7 @@ modules:
   company: true
   treasury: true
   analytics: true
+  sinks: true
 
 database:
   backup:
@@ -141,6 +142,15 @@ treasury:
 
 analytics:
   snapshot-minutes: 10
+  # Detección de manipulación en la bolsa (alertas para quienes tengan economycore.alerts)
+  manipulation:
+    enabled: true
+    interval-minutes: 5
+    window-minutes: 60
+    wash-min-trades: 6
+    min-trades: 5
+    price-move-percent: 15
+    dominance-percent: 60
   alerts:
     large-transfer: "1000000"
     concentration-percent: "50"
@@ -153,3 +163,32 @@ vault:
   force-priority: true
   # Moneda expuesta a Vault ("" = moneda por defecto)
   currency: ""
+
+notifications:
+  enabled: true
+  sound: true
+
+# Sumideros de dinero (valores por defecto; se pueden cambiar en el juego desde /eco -> Sumideros)
+sinks:
+  interval-minutes: 60
+  anvil:
+    per-level: "5"
+  shop:
+    per-day: "25"
+  company:
+    per-day: "100"
+  inactivity:
+    days: 30
+    percent-per-day: "1"
+    exempt-below: "1000"
+  destination: BURN
+
+placeholders:
+  enabled: true
+  refresh-seconds: 30
+
+# Interfaz
+gui:
+  modern-colors: true   # paleta moderna (hex) para menús y mensajes; false = colores clásicos
+  sounds: true
+  page-size: 45         # elementos por página en listas (múltiplo de 9, de 9 a 45)

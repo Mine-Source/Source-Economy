@@ -25,10 +25,12 @@ public final class ConfirmMenu extends Menu {
     @Override
     protected void render() {
         fillEmpty();
+        for (int s : new int[]{0, 9, 18, 1, 19}) set(s, Items.pane("LIME"));
+        for (int s : new int[]{8, 17, 26, 7, 25}) set(s, Items.pane("RED"));
         List<String> l = new ArrayList<>(lore);
-        set(13, Items.of(Material.PAPER, "&eConfirmación", l));
-        set(11, Items.of(Material.LIME_CONCRETE, "&a&lCONFIRMAR", "&7Clic para aceptar"), c -> { viewer.closeInventory(); yes.run(); });
-        set(15, Items.of(Material.RED_CONCRETE, "&c&lCANCELAR", "&7Clic para cancelar"), c -> {
+        set(13, Items.of(Material.PAPER, "&6&l⚠ Confirmación", l));
+        set(11, Items.of(Material.LIME_CONCRETE, "&a&l✔ CONFIRMAR", "&7Clic para aceptar"), c -> { viewer.closeInventory(); yes.run(); });
+        set(15, Items.of(Material.RED_CONCRETE, "&c&l✖ CANCELAR", "&7Clic para cancelar"), c -> {
             if (no != null) no.run(); else viewer.closeInventory();
         });
     }

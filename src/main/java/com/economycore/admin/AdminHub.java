@@ -3,6 +3,7 @@ package com.economycore.admin;
 import com.economycore.core.Cmds;
 import com.economycore.core.Currency;
 import com.economycore.core.EconomyCore;
+import com.economycore.core.Ledger;
 import com.economycore.core.Module;
 import com.economycore.core.Money;
 import com.economycore.core.Msg;
@@ -74,14 +75,16 @@ public final class AdminHub {
 
     public void open(Player p) {
         boolean admin = p.hasPermission("economycore.admin");
-        new ButtonMenu(pl, p, admin ? "&6&lEconomyCore &8- &cAdministración" : "&6&lEconomyCore", 5, true, () -> {
+        new ButtonMenu(pl, p, com.economycore.gui.Theme.gradient("EconomyCore", "FFB020", "FF6B6B", true) + (admin ? " &8- &cAdministración" : ""), 5, true, () -> {
             List<Btn> l = new ArrayList<>();
             int i = 0;
             for (Module m : pl.modules().values()) {
                 if (i >= SLOTS.length) break;
                 if (!p.hasPermission(m.permission())) continue;
-                l.add(Btn.of(SLOTS[i++], Items.of(m.icon(), m.title(), "&7" + m.description(), "&eClic para abrir"), () -> m.open(p, () -> open(p))));
+                l.add(Btn.of(SLOTS[i++], Items.of(m.icon(), m.title(), "&7" + m.description(), "", "&e▸ Clic para abrir"), () -> m.open(p, () -> open(p))));
             }
+            String dc = pl.currencies().defId();
+            l.add(Btn.of(4, Items.head(p, "&6&l" + p.getName(), "&7Saldo: &a" + Money.plain(dc, Ledger.cached(p.getUniqueId(), dc)), "", admin ? "&aModo administrador" : "&7Modo jugador"), () -> {}));
             l.add(Btn.of(40, Items.of(Material.BOOK, "&7EconomyCore v" + pl.getDescription().getVersion(), "&7Módulos activos: &f" + pl.modules().size(), admin ? "&aModo administrador" : "&7Modo jugador"), () -> {}));
             return l;
         }).open();

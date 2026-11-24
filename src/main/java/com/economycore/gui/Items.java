@@ -21,9 +21,9 @@ public final class Items {
         ItemStack it = new ItemStack(m == null ? Material.STONE : m);
         ItemMeta meta = it.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(Msg.color(name));
+            meta.setDisplayName("§r" + Msg.color(name));
             List<String> l = new ArrayList<>();
-            for (String s : lore) l.add(Msg.color(s));
+            for (String s : lore) l.add("§r" + Msg.color(s));
             meta.setLore(l);
             meta.addItemFlags(ItemFlag.values());
             it.setItemMeta(meta);
@@ -41,7 +41,7 @@ public final class Items {
         ItemMeta meta = it.getItemMeta();
         if (meta == null) return it;
         List<String> l = meta.hasLore() && meta.getLore() != null ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
-        for (String s : extra) l.add(Msg.color(s));
+        for (String s : extra) l.add("§r" + Msg.color(s));
         meta.setLore(l);
         it.setItemMeta(meta);
         return it;
@@ -53,5 +53,13 @@ public final class Items {
         return of(Compat.mat(Material.GRAY_STAINED_GLASS_PANE, color + "_STAINED_GLASS_PANE"), " ");
     }
 
-    public static ItemStack filler() { return pane("GRAY"); }
+    public static ItemStack filler() { return pane("BLACK"); }
+
+    public static ItemStack head(org.bukkit.OfflinePlayer owner, String name, String... lore) {
+        ItemStack it = of(Material.PLAYER_HEAD, name, lore);
+        if (it.getItemMeta() instanceof org.bukkit.inventory.meta.SkullMeta sm) {
+            try { sm.setOwningPlayer(owner); it.setItemMeta(sm); } catch (Throwable ignored) {}
+        }
+        return it;
+    }
 }

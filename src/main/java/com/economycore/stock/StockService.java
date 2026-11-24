@@ -10,6 +10,7 @@ import com.economycore.core.EcoException;
 import com.economycore.core.EconomyCore;
 import com.economycore.core.Ledger;
 import com.economycore.core.Money;
+import com.economycore.core.Notify;
 import com.economycore.core.Msg;
 import com.economycore.core.OrderBook;
 import com.economycore.core.OrderBook.Level;
@@ -55,12 +56,8 @@ public final class StockService {
                 Sql.exec(tx, "UPDATE companies SET prev_price=price, price=? WHERE id=?", price, product);
                 Sql.exec(tx, "INSERT INTO stock_trades(ts,company,buyer,seller,price,qty) VALUES(?,?,?,?,?,?)", System.currentTimeMillis(), product, buyer, seller, price, qty);
                 String cur = companies.cur(product);
-                tx.afterCommit(() -> {
-                    Player b = Bukkit.getPlayer(buyer);
-                    Player s = Bukkit.getPlayer(seller);
-                    if (b != null) Msg.send(b, "stock-fill-buy", qty, product.toUpperCase(), Money.fmt(cur, price));
-                    if (s != null) Msg.send(s, "stock-fill-sell", qty, product.toUpperCase(), Money.fmt(cur, price));
-                });
+                Notify.to(tx, buyer, "stock-fill-buy", qty, product.toUpperCase(), Money.fmt(cur, price));
+                Notify.to(tx, seller, "stock-fill-sell", qty, product.toUpperCase(), Money.fmt(cur, price));
             }
         }, companies::cur, () -> Money.dec(pl.getConfig().getString("stocks.commission-percent", "0.5"), BigDecimal.ZERO), () -> pl.getConfig().getInt("stocks.max-orders", 20), "STOCK");
     }
