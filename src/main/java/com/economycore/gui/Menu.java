@@ -71,6 +71,10 @@ public abstract class Menu implements InventoryHolder {
         for (int i = 0; i < inv.getSize(); i++) if (inv.getItem(i) == null) inv.setItem(i, f);
     }
 
+    protected void fillEmpty(ItemStack f) {
+        for (int i = 0; i < inv.getSize(); i++) if (inv.getItem(i) == null) inv.setItem(i, f);
+    }
+
     protected void backButton(int slot) {
         if (parent != null) set(slot, Items.of(Material.ARROW, "&e◀ Volver", "&8Regresa al menú anterior"), c -> parent.run());
     }

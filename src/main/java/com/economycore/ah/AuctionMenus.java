@@ -87,6 +87,11 @@ public final class AuctionMenus {
 
     private static final String[] CATS = {null, "blocks", "weapons", "armor", "tools", "food", "misc"};
     private static final String[] CAT_ICON = {"NETHER_STAR", "GRASS_BLOCK", "DIAMOND_SWORD", "DIAMOND_CHESTPLATE", "DIAMOND_PICKAXE", "COOKED_BEEF", "CHEST"};
+    private static final String[] CAT_PANE = {"GRAY", "GREEN", "PURPLE", "CYAN", "RED", "ORANGE", "MAGENTA"};
+    private static final String[][] CAT_EX = {
+            {"Todo lo que está a la venta"}, {"Bloques", "Piedra y minerales", "Madera", "Decoración"}, {"Espadas", "Arcos y ballestas", "Tridentes", "Munición"},
+            {"Cascos y petos", "Pantalones", "Botas", "Escudos"}, {"Picos y hachas", "Palas y azadas", "Cañas de pescar", "Herramientas"},
+            {"Carne y pescado", "Pan y verduras", "Pociones", "Comida cocinada"}, {"Pociones y libros", "Cabezas y talismanes", "Redstone", "Todo lo demás"}};
     private static final int[] GRID = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43};
     private static final String[] SORT_LABELS = {"Termina pronto", "Más nuevas", "Precio ascendente", "Precio descendente"};
     private static final String[] TYPE_LABELS = {"Todos", "Compra directa", "Subastas"};
@@ -94,19 +99,18 @@ public final class AuctionMenus {
 
     /** Entry point: main Auction House menu. */
     public void hub(Player p, Runnable back) {
-        new ButtonMenu(pl, p, "&6Casa de subastas", 5, true, () -> {
+        new ButtonMenu(pl, p, "&6Casa de subastas", 4, true, () -> {
             List<Btn> l = new ArrayList<>();
-            l.add(Btn.of(4, Items.of(Material.GOLD_BLOCK, "&6Casa de subastas", "&7Compra y vende objetos con otros", "&7jugadores.", "",
-                    "&7Comisión de venta: &a" + pl.getConfig().getString("auction-house.commission-percent", "5") + "%",
-                    "&7Máx. publicaciones: &f" + pl.getConfig().getInt("auction-house.max-listings", 10)), () -> {}));
-            l.add(Btn.of(11, Items.of(Material.COMPASS, "&aExplorar subastas", "&7Busca objetos a la venta con", "&7categorías, filtros y orden.", "", "&e▸ Clic para explorar"), () -> browse(p, defaultFilter(), () -> hub(p, back))));
-            l.add(Btn.of(13, Items.of(Material.EMERALD, "&aVender un objeto", "&7Pon a la venta el objeto que", "&7llevas en la mano.", "", "&e▸ Clic para vender"), () -> sellHand(p, () -> hub(p, back))));
-            l.add(Btn.of(15, Items.of(Material.CHEST, "&6Mis subastas", "&7Gestiona tus publicaciones activas.", "", "&e▸ Clic para ver"), () -> browse(p, new Filter(null, null, "ending", null, p.getUniqueId()), () -> hub(p, back))));
-            l.add(Btn.of(29, Items.of(Material.NETHER_STAR, "&eFavoritos", "&7Subastas que marcaste con una estrella.", "", "&e▸ Clic para ver"), () -> browse(p, new Filter(null, null, "ending", p.getUniqueId(), null), () -> hub(p, back))));
-            l.add(Btn.of(31, Items.of(Material.ENDER_CHEST, "&dReclamaciones", "&7Objetos ganados, vencidos o devueltos", "&7y dinero pendiente de cobrar.", "", "&e▸ Clic para reclamar"), () -> ((EconomyModule) pl.module("economy")).menus().mailbox(p, () -> hub(p, back))));
-            l.add(Btn.of(33, Items.of(Material.BOOK, "&bCómo funciona", "&7▪ &fBIN&7: compra directa al precio fijado.", "&7▪ &fSubasta&7: gana la puja más alta.",
-                    "&7▪ &fAnti-sniping&7: una puja en los últimos &f" + pl.getConfig().getInt("auction-house.anti-snipe.window-seconds", 120) + "s",
-                    "&7  alarga la subasta.", "&7▪ Al vender se cobra una comisión."), () -> {}));
+            l.add(Btn.of(11, Items.of(Material.GOLD_BLOCK, "&6Explorar subastas", "&7Busca objetos que otros jugadores", "&7han puesto a la venta.", "",
+                    "&7Categorías, filtros, orden y búsqueda.", "", "&e▸ Clic para explorar"), () -> browse(p, defaultFilter(), () -> hub(p, back))));
+            l.add(Btn.of(13, Items.of(Material.GOLDEN_CARROT, "&6Mis subastas", "&7Gestiona tus publicaciones activas", "&7y cancela las que quieras.", "",
+                    "&7Máx. publicaciones: &f" + pl.getConfig().getInt("auction-house.max-listings", 10), "", "&e▸ Clic para ver"), () -> browse(p, new Filter(null, null, "ending", null, p.getUniqueId()), () -> hub(p, back))));
+            l.add(Btn.of(15, Items.of(Material.GOLDEN_HORSE_ARMOR, "&6Crear subasta", "&7Pon a la venta el objeto que", "&7llevas en la mano.", "",
+                    "&7Comisión de venta: &a" + pl.getConfig().getString("auction-house.commission-percent", "5") + "%", "", "&e▸ Clic para vender"), () -> sellHand(p, () -> hub(p, back))));
+            l.add(Btn.of(21, Items.of(Material.NETHER_STAR, "&eFavoritos", "&7Subastas que marcaste con una estrella.", "", "&e▸ Clic para ver"), () -> browse(p, new Filter(null, null, "ending", p.getUniqueId(), null), () -> hub(p, back))));
+            l.add(Btn.of(23, Items.of(Material.ENDER_CHEST, "&dReclamaciones", "&7Objetos ganados, vencidos o devueltos", "&7y dinero pendiente de cobrar.", "", "&e▸ Clic para reclamar"), () -> ((EconomyModule) pl.module("economy")).menus().mailbox(p, () -> hub(p, back))));
+            l.add(Btn.of(26, Items.of(Material.BOOK, "&bCómo funciona", "&7▪ &fBIN&7: compra directa al precio fijado.", "&7▪ &fSubasta&7: gana la puja más alta.",
+                    "&7▪ &fAnti-sniping&7: una puja en los últimos &f" + pl.getConfig().getInt("auction-house.anti-snipe.window-seconds", 120) + "s", "&7  alarga la subasta.", "&7▪ Al vender se cobra una comisión."), () -> {}));
             return l;
         }).centerNav().back(back).open();
     }
@@ -159,22 +163,23 @@ public final class AuctionMenus {
             if (page < 0) page = 0;
             for (int i = 0; i < GRID.length && page * GRID.length + i < list.size(); i++) {
                 Auction a = list.get(page * GRID.length + i);
-                set(GRID[i], icon(a, favs, mine), ci -> detail(viewer, a.id(), () -> new Browser(viewer, f, back).load()));
+                set(GRID[i], icon(a, favs, mine), ci -> detail(viewer, a.id(), () -> Browser.this.load()));
             }
             if (list.isEmpty()) set(22, Items.of(Material.BARRIER, "&cNo hay subastas", "&7Nada coincide con los filtros", "&7actuales.", "", "&e▸ Prueba a cambiar la categoría"));
             // categories
             for (int i = 0; i < CATS.length; i++) {
                 final String cat = CATS[i];
                 boolean sel = java.util.Objects.equals(cat, f.category());
-                ItemStack it = Items.of(CAT_ICON[i], (sel ? "&a▶ " : "&e") + catName(cat), "&8Filtra por categoría", "", sel ? "&a✔ Seleccionada" : "&e▸ Clic para seleccionar");
+                ItemStack it = Items.of(CAT_ICON[i], (sel ? "&a▶ " : "&e") + catName(cat), catLore(i, sel));
                 if (sel) Items.glow(it);
                 set(1 + i, it, ci -> { f = f.withCategory(cat); page = 0; load(); });
             }
             // bottom bar
-            if (page > 0) set(45, Items.of(Material.ARROW, "&e◀ Anterior", "&7Página &f" + page), c -> { page--; refresh(); });
-            else set(45, Items.of(Material.GRAY_DYE, "&8◀ Anterior"));
-            if (page < pages - 1) set(53, Items.of(Material.ARROW, "&eSiguiente ▶", "&7Página &f" + (page + 2)), c -> { page++; refresh(); });
-            else set(53, Items.of(Material.GRAY_DYE, "&8Siguiente ▶"));
+            final int lastPage = pages - 1;
+            if (page > 0) set(45, Items.of(Material.ARROW, "&a◀ Página anterior", "&8(" + page + "/" + pages + ")", "", "&bClic derecho: saltar 5 páginas", "&e▸ Clic para retroceder"), c -> { page = Math.max(0, page - (c.right() ? 5 : 1)); refresh(); });
+            else set(45, Items.of(Material.GRAY_DYE, "&8◀ Página anterior", "&8Ya estás en la primera"));
+            if (page < lastPage) set(53, Items.of(Material.ARROW, "&aPágina siguiente ▶", "&8(" + (page + 2) + "/" + pages + ")", "", "&bClic derecho: saltar 5 páginas", "&e▸ Clic para avanzar"), c -> { page = Math.min(lastPage, page + (c.right() ? 5 : 1)); refresh(); });
+            else set(53, Items.of(Material.GRAY_DYE, "&8Página siguiente ▶", "&8Ya estás en la última"));
             int si = Math.max(0, java.util.Arrays.asList(AuctionService.SORTS).indexOf(f.sort()));
             List<String> sl = new ArrayList<>(List.of("&8Cambia el orden de la lista", ""));
             sl.addAll(Items.options(SORT_LABELS, si));
@@ -184,7 +189,7 @@ public final class AuctionMenus {
                 if (c.right()) { search = ""; page = 0; refresh(); return; }
                 Prompt.ask(viewer, "Escribe el texto a buscar", s -> { search = s; page = 0; open(); }, this::open);
             });
-            backButton(46);
+            if (back != null) set(46, Items.of(Material.ARROW, "&a◀ Volver", "&7A Casa de subastas", "", "&e▸ Clic para volver"), c -> back.run());
             closeButton(49);
             int ti = 0;
             for (int i = 0; i < TYPES.length; i++) if (java.util.Objects.equals(TYPES[i], f.type())) ti = i;
@@ -197,7 +202,18 @@ public final class AuctionMenus {
             ItemStack favItem = Items.of(fav ? Material.NETHER_STAR : Material.GRAY_DYE, "&eSolo favoritos: " + (fav ? "&así" : "&cno"), "&8Muestra solo tus estrellas", "", "&e▸ Clic para alternar");
             set(51, fav ? Items.glow(favItem) : favItem, c -> { f = f.withFavorites(fav ? null : viewer.getUniqueId()); page = 0; load(); });
             set(52, Items.of(Material.PAPER, "&fPágina " + (page + 1) + "&8/&7" + pages, com.economycore.gui.Theme.bar(page + 1, pages, 10), "&7Resultados: &f" + list.size()));
-            fillEmpty();
+            fillEmpty(Items.pane(CAT_PANE[Math.max(0, java.util.Arrays.asList(CATS).indexOf(f.category()))]));
+        }
+
+        private List<String> catLore(int i, boolean sel) {
+            List<String> l = new ArrayList<>();
+            l.add("&8Categoría");
+            l.add("");
+            l.add("&7Ejemplos:");
+            for (String e : CAT_EX[i]) l.add("&8▪ &7" + e);
+            l.add("");
+            l.add(sel ? "&a✔ Categoría seleccionada" : "&e▸ Clic para ver objetos");
+            return l;
         }
     }
 
@@ -271,23 +287,78 @@ public final class AuctionMenus {
     }
 
     // ---------- selling ----------
+    private static final class Draft {
+        boolean auction;
+        BigDecimal price;
+        BigDecimal buyNow;
+        int hours;
+        ItemStack item;
+    }
+
+    private static final int[] HOUR_PRESETS = {1, 2, 6, 12, 24, 48, 72, 168, 336, 720};
+
     public void sellHand(Player p, Runnable back) {
-        if (Inv.hand(p) == null) { Msg.send(p, "hold-item"); return; }
+        ItemStack hand = Inv.hand(p);
+        if (hand == null) { Msg.send(p, "hold-item"); return; }
+        Draft d = new Draft();
+        d.item = hand.clone();
+        d.auction = false;
+        d.price = Money.dec(pl.getConfig().getString("auction-house.min-price", "1"), BigDecimal.ONE);
+        d.hours = Math.min(24, pl.getConfig().getInt("auction-house.max-duration-hours", 168));
+        sellMenu(p, d, back);
+    }
+
+    private void sellMenu(Player p, Draft d, Runnable back) {
         int maxH = pl.getConfig().getInt("auction-house.max-duration-hours", 168);
-        Form.of(p).ask("type", "Tipo: &ebin &7(compra directa) o &esubasta").ask("price", "Precio (precio inicial si es subasta)")
-                .ask("hours", "Duración en horas (máx " + maxH + ")").onCancel(back).then(a -> {
-                    boolean auction = a.get("type").toLowerCase().startsWith("s") || a.get("type").toLowerCase().startsWith("a");
-                    BigDecimal price = Money.parse(a.get("price"));
-                    int hours;
-                    try { hours = Integer.parseInt(a.get("hours").trim()); } catch (NumberFormatException e) { Msg.send(p, "invalid-number"); return; }
-                    if (price == null || hours < 1 || hours > maxH) { Msg.send(p, "invalid-number"); return; }
-                    if (auction) Prompt.ask(p, "Precio de compra inmediata (o - para ninguno)", s -> {
-                        BigDecimal bn = s.trim().equals("-") ? null : Money.parse(s);
-                        if (bn == null && !s.trim().equals("-")) { Msg.send(p, "invalid-amount"); return; }
-                        create(p, "AUCTION", price, bn, hours, back);
-                    }, back);
-                    else create(p, "BIN", price, null, hours, back);
-                });
+        String cur = pl.currencies().defId();
+        BigDecimal pct = Money.dec(pl.getConfig().getString("auction-house.commission-percent", "5"), BigDecimal.ZERO);
+        Runnable self = () -> sellMenu(p, d, back);
+        new ButtonMenu(pl, p, "&6Casa de subastas &8➜ &6Crear", 5, true, () -> {
+            List<Btn> l = new ArrayList<>();
+            l.add(Btn.of(13, Items.withLore(d.item, "", "&8Objeto a la venta", "&7Cantidad: &f" + d.item.getAmount()), () -> {}));
+            l.add(Btn.of(20, Items.of(d.auction ? Material.GOLDEN_CARROT : Material.GOLD_INGOT, "&aTipo de venta", "&8Cómo se vende el objeto", "",
+                    Items.options(new String[]{"Compra directa (BIN)", "Subasta con pujas"}, d.auction ? 1 : 0).get(0),
+                    Items.options(new String[]{"Compra directa (BIN)", "Subasta con pujas"}, d.auction ? 1 : 0).get(1), "", "&e▸ Clic para cambiar"), () -> { d.auction = !d.auction; if (!d.auction) d.buyNow = null; self.run(); }));
+            l.add(Btn.of(22, Items.of(Material.GOLD_NUGGET, d.auction ? "&6Puja inicial: " + Money.fmt(cur, d.price) : "&6Precio: " + Money.fmt(cur, d.price),
+                    d.auction ? "&7Con qué cantidad empieza la subasta." : "&7Lo que pagará quien lo compre.", "", "&e▸ Clic para escribir"), () ->
+                    Prompt.ask(p, d.auction ? "Puja inicial" : "Precio", s -> {
+                        BigDecimal v = Money.parse(s);
+                        if (v == null || v.signum() <= 0) Msg.send(p, "invalid-amount"); else d.price = v;
+                        self.run();
+                    }, self)));
+            int hi = 0;
+            for (int i = 0; i < HOUR_PRESETS.length; i++) if (HOUR_PRESETS[i] <= d.hours) hi = i;
+            final int fhi = hi;
+            l.add(new Btn(24, Items.of(Material.CLOCK, "&6Duración: &e" + Fmt.duration(d.hours * 3_600_000L), "&7Cuánto tiempo estará publicada.",
+                    d.auction ? "&8Las pujas alargan la subasta." : "&8Si nadie compra, vuelve a ti.", "", "&e▸ Clic izq: siguiente", "&e▸ Clic der: escribir horas"), c -> {
+                if (c.right()) { Prompt.ask(p, "Duración en horas (máx " + maxH + ")", s -> {
+                    try { int h = Integer.parseInt(s.trim()); if (h >= 1 && h <= maxH) d.hours = h; else Msg.send(p, "invalid-number"); } catch (NumberFormatException e) { Msg.send(p, "invalid-number"); }
+                    self.run();
+                }, self); return; }
+                int n = HOUR_PRESETS[(fhi + 1) % HOUR_PRESETS.length];
+                d.hours = n > maxH ? HOUR_PRESETS[0] : n;
+                self.run();
+            }));
+            if (d.auction) l.add(new Btn(29, Items.of(Material.EMERALD, "&aCompra inmediata" + (d.buyNow == null ? " &8(opcional)" : ": " + Money.fmt(cur, d.buyNow)),
+                    "&7Precio al que cualquiera puede", "&7llevárselo sin pujar.", "", "&e▸ Clic para escribir", "&e▸ Clic der: quitar"), c -> {
+                if (c.right()) { d.buyNow = null; self.run(); return; }
+                Prompt.ask(p, "Precio de compra inmediata", s -> {
+                    BigDecimal v = Money.parse(s);
+                    if (v == null || v.signum() <= 0) Msg.send(p, "invalid-amount"); else d.buyNow = v;
+                    self.run();
+                }, self);
+            }));
+            BigDecimal fee = Money.scale(cur, d.price.multiply(pct).divide(BigDecimal.valueOf(100), 12, java.math.RoundingMode.HALF_UP));
+            l.add(Btn.of(33, Items.of(Material.PAPER, "&bResumen", "&7Precio: " + Money.fmt(cur, d.price), "&7Comisión al vender: &a" + pct.stripTrailingZeros().toPlainString() + "% &8(~" + Money.plain(cur, fee) + ")",
+                    "&7Recibirás: " + Money.fmt(cur, Money.scale(cur, d.price.subtract(fee))), "&7Duración: &f" + Fmt.duration(d.hours * 3_600_000L)), () -> {}));
+            l.add(Btn.of(31, Items.glow(Items.of(Material.LIME_DYE, "&a✔ Crear " + (d.auction ? "subasta" : "oferta"), "&7Publica el objeto con los", "&7ajustes de arriba.", "", "&e▸ Clic para publicar")), () -> {
+                ItemStack h = Inv.hand(p);
+                if (h == null || !h.isSimilar(d.item)) { Msg.send(p, "hold-item"); return; }
+                if (d.auction && d.buyNow != null && d.buyNow.compareTo(d.price) <= 0) { Msg.send(p, "invalid-amount"); return; }
+                create(p, d.auction ? "AUCTION" : "BIN", d.price, d.buyNow, d.hours, back);
+            }));
+            return l;
+        }).centerNav().back(back).open();
     }
 
     public void create(Player p, String type, BigDecimal price, BigDecimal buyNow, int hours, Runnable back) {

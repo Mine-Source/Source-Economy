@@ -82,7 +82,12 @@ Cada módulo se puede activar o desactivar en `config.yml` → `modules`.
 - Comisión configurable y máximo de órdenes por jugador.
 
 ### Comerciantes (`/trader`)
-- Ofertas de **objeto por objeto** u **objeto por dinero**, con límite de usos.
+- **Ventana nativa de aldeano** para los trueques de objeto por objeto (hasta dos objetos de costo). El cliente rellena los ingredientes al elegir un trato, y al sacar el resultado se ejecuta la transacción real con sus límites.
+- **Menú propio** para los tratos con dinero o comandos de recompensa, que la ventana de aldeano no puede mostrar. Cada coste indica con ✔/✖ si lo cumples.
+- Interfaz por comerciante: **Automático** (aldeano si todas las ofertas son de objetos, menú si no), **Ventana de aldeano** (solo objetos) o **Menú** (todo). Se cambia en el editor y se puede forzar con `/trader open <id> [jugador] <villager|menu>`.
+- **Editor visual de ofertas** (`/eco` → Comerciantes → clic derecho → Ofertas): toma un objeto con el cursor y haz clic en la ranura de costo 1, costo 2 o resultado. Clic izq/der cambia la cantidad (shift: 16) y shift + clic der la quita.
+- Opciones por oferta: costo y pago en dinero, moneda, usos por jugador, stock global, espera entre usos, permiso, comandos de recompensa (consola, `%player%`, varios separados por `||`) y activar/desactivar.
+- Lista de ofertas: clic izq editar, clic der duplicar, shift izq / der subir / bajar.
 - Se vinculan a **NPCs de otros plugins** mediante un identificador. No crea NPCs ni depende de Citizens. Ver [Integración con NPCs](#integración-con-npcs).
 
 ### Intercambio entre jugadores (`/trade <jugador>`)

@@ -35,6 +35,10 @@ public final class Items {
         return of(Compat.mat(material), name, lore);
     }
 
+    public static ItemStack of(String material, String name, List<String> lore) {
+        return of(Compat.mat(material), name, lore);
+    }
+
     /** Copy of a real item with extra lore lines appended (keeps its own name/lore). */
     public static ItemStack withLore(ItemStack base, List<String> extra) {
         ItemStack it = base.clone();
@@ -51,6 +55,12 @@ public final class Items {
 
     public static ItemStack pane(String color) {
         return of(Compat.mat(Material.GRAY_STAINED_GLASS_PANE, color + "_STAINED_GLASS_PANE"), " ");
+    }
+
+    /** Shows a quantity on the icon (Hypixel-style: 64 = all, 32 = half...). */
+    public static ItemStack qty(ItemStack it, int amount) {
+        it.setAmount(Math.max(1, Math.min(64, amount)));
+        return it;
     }
 
     public static ItemStack filler() { return pane("BLACK"); }

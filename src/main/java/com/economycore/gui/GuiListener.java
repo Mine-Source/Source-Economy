@@ -19,9 +19,9 @@ public final class GuiListener implements Listener {
         if (!(e.getWhoClicked() instanceof Player p)) return;
         Inventory clicked = e.getClickedInventory();
         if (clicked == null) return;
-        ClickInfo ci = new ClickInfo(p, e.getClick(), e.getRawSlot(), e.getCurrentItem());
+        ClickInfo ci = new ClickInfo(p, e.getClick(), e.getRawSlot(), e.getCurrentItem(), e.getCursor());
         if (clicked == top) m.handleTop(ci);
-        else m.handleBottom(new ClickInfo(p, e.getClick(), e.getSlot(), e.getCurrentItem()));
+        else m.handleBottom(new ClickInfo(p, e.getClick(), e.getSlot(), e.getCurrentItem(), e.getCursor()));
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)

@@ -110,7 +110,7 @@ public final class BankMenus {
             if (t != null) { Msg.error(p, t); back.run(); return; }
             Runnable self = () -> account(p, id, back, admin);
             boolean shared = a.type().equals("SHARED");
-            new ButtonMenu(pl, p, "&6" + (shared ? "Cuenta compartida" : "Cuenta personal") + " &8➜ &6" + a.name(), 5, true, () -> {
+            new ButtonMenu(pl, p, "&6" + (shared ? "Cuenta compartida" : "Cuenta personal") + " &8➜ &6" + a.name(), 4, true, () -> {
                 List<Btn> l = new ArrayList<>();
                 BigDecimal purse = Ledger.cached(p.getUniqueId(), a.currency());
                 l.add(Btn.of(4, Items.of(shared ? Material.ENDER_CHEST : Material.GOLD_BLOCK, (shared ? "&b" : "&6") + a.name(),
@@ -128,15 +128,20 @@ public final class BankMenus {
                                 svc.transfer(p.getUniqueId(), id, f.get("to"), v).whenComplete((r, x) -> Tasks.sync(() -> { if (x != null) Msg.error(p, x); else Msg.send(p, "bank-transferred", Money.fmt(a.currency(), v), r); self.run(); }));
                             })));
                 }
-                l.add(Btn.of(29, Items.of(Material.MAP, "&eMovimientos recientes", "&7Consulta el extracto de la cuenta.", "", "&e▸ Clic para ver"), () -> statement(p, id, self)));
+                l.add(Btn.of(20, Items.of(Material.MAP, "&eMovimientos recientes", "&7Consulta el extracto de la cuenta.", "", "&e▸ Clic para ver"), () -> statement(p, id, self)));
                 double rate = pl.getConfig().getDouble(shared ? "bank.interest.shared-percent" : "bank.interest.personal-percent", 0.5);
-                l.add(Btn.of(31, Items.of(Material.SUNFLOWER, "&6Intereses", "&7Tasa: &a" + rate + "% &7cada &f" + pl.getConfig().getLong("bank.interest.interval-minutes", 60) + " min",
-                        "&7Hasta un saldo de &f" + pl.getConfig().getString("bank.interest.max-balance", "1000000"), "",
+                BigDecimal maxBal = Money.dec(pl.getConfig().getString("bank.interest.max-balance", "1000000"), BigDecimal.valueOf(1_000_000));
+                BigDecimal base = a.balance().min(maxBal);
+                BigDecimal proj = Money.scale(a.currency(), base.multiply(BigDecimal.valueOf(rate)).divide(BigDecimal.valueOf(100), 12, java.math.RoundingMode.DOWN));
+                l.add(Btn.of(22, Items.of(Material.SUNFLOWER, "&6Intereses", "&7El banco te recompensa cada &f" + pl.getConfig().getLong("bank.interest.interval-minutes", 60) + " min",
+                        "&7por las monedas depositadas.", "",
+                        "&7Tasa: &a" + rate + "%", "&7Proyectado: " + Money.fmt(a.currency(), proj),
+                        "&7Saldo máximo con interés: &f" + Money.plain(a.currency(), maxBal), "",
                         "&7Estado: " + (a.interest() ? "&aActivos" : "&cDesactivados"), admin ? "" : null, admin ? "&e▸ Clic para alternar" : null), () -> {
                     if (admin) svc.toggleInterest(p.getName(), id).whenComplete((r, x) -> Tasks.sync(self));
                 }));
-                if (shared) l.add(Btn.of(33, Items.of(Material.PLAYER_HEAD, "&dMiembros", "&7Gestores y miembros de la cuenta.", "", "&e▸ Clic para gestionar"), () -> members(p, a, self)));
-                if (a.role().equals("OWNER") || admin) l.add(Btn.of(44, Items.of(Material.TNT, "&cCerrar cuenta", "&7El saldo vuelve al dueño.", "", "&c▸ Clic para cerrar"), () ->
+                if (shared) l.add(Btn.of(24, Items.of(Material.PLAYER_HEAD, "&dMiembros", "&7Gestores y miembros de la cuenta.", "", "&e▸ Clic para gestionar"), () -> members(p, a, self)));
+                if (a.role().equals("OWNER") || admin) l.add(Btn.of(35, Items.of(Material.TNT, "&cCerrar cuenta", "&7El saldo vuelve al dueño.", "", "&c▸ Clic para cerrar"), () ->
                         ConfirmMenu.ask(pl, p, "&cCerrar " + a.name(), List.of("&7Saldo: " + Money.plain(a.currency(), a.balance()), "&7Se transfiere al dueño"), () ->
                                 svc.close(p.getUniqueId(), id, admin).whenComplete((r, x) -> Tasks.sync(() -> { if (x != null) Msg.error(p, x); back.run(); })), self)));
                 return l;
@@ -144,18 +149,23 @@ public final class BankMenus {
         }));
     }
 
-    /** Hypixel-style quick amounts: all / half / custom. */
+    /** Hypixel-style quick amounts: the stack size on each icon hints at the fraction (64 = all, 32 = half...). */
     private void amountMenu(Player p, Account a, boolean deposit, Runnable back) {
         BigDecimal source = deposit ? Ledger.cached(p.getUniqueId(), a.currency()) : a.balance();
-        BigDecimal half = source.divide(BigDecimal.valueOf(2), 12, java.math.RoundingMode.DOWN);
+        BigDecimal half = Money.scale(a.currency(), source.divide(BigDecimal.valueOf(2), 12, java.math.RoundingMode.DOWN));
+        BigDecimal fifth = Money.scale(a.currency(), source.multiply(BigDecimal.valueOf(0.2)));
         String verb = deposit ? "depositar" : "retirar";
+        String what = deposit ? "tu bolsillo" : "la cuenta";
         new ButtonMenu(pl, p, "&6" + (deposit ? "Depositar" : "Retirar") + " &8➜ &6" + a.name(), 4, true, () -> {
             List<Btn> l = new ArrayList<>();
-            l.add(Btn.of(11, Items.of(Material.CHEST, "&aTodo", "&7" + (deposit ? "Deposita todo tu bolsillo." : "Retira todo el saldo."), "",
-                    "&7Cantidad: " + Money.fmt(a.currency(), source), "", "&e▸ Clic para " + verb), () -> run(p, a, deposit, source, back)));
-            l.add(Btn.of(13, Items.of(Material.CHEST_MINECART, "&eMitad", "&7La mitad de " + (deposit ? "tu bolsillo." : "la cuenta."), "",
-                    "&7Cantidad: " + Money.fmt(a.currency(), Money.scale(a.currency(), half)), "", "&e▸ Clic para " + verb), () -> run(p, a, deposit, Money.scale(a.currency(), half), back)));
-            l.add(Btn.of(15, Items.of(Material.OAK_SIGN, "&bCantidad personalizada", "&7Escribe la cantidad en el chat.", "&8Admite 1.5k, 2m, 3b o 'todo'.", "", "&e▸ Clic para escribir"), () ->
+            l.add(Btn.of(10, Items.qty(Items.of(Material.CHEST, "&aTodo " + (deposit ? "tu bolsillo" : "el saldo"), "&8Banco · " + (deposit ? "depósito" : "retiro"), "",
+                    "&7Saldo actual: " + Money.fmt(a.currency(), a.balance()), "&7Cantidad: " + Money.fmt(a.currency(), source), "", "&e▸ Clic para " + verb), 64), () -> run(p, a, deposit, source, back)));
+            l.add(Btn.of(12, Items.qty(Items.of(Material.CHEST, "&eMitad de " + what, "&8Banco · " + (deposit ? "depósito" : "retiro"), "",
+                    "&7Saldo actual: " + Money.fmt(a.currency(), a.balance()), "&7Cantidad: " + Money.fmt(a.currency(), half), "", "&e▸ Clic para " + verb), 32), () -> run(p, a, deposit, half, back)));
+            l.add(Btn.of(14, Items.qty(Items.of(Material.DROPPER, "&b20% de " + what, "&8Banco · " + (deposit ? "depósito" : "retiro"), "",
+                    "&7Saldo actual: " + Money.fmt(a.currency(), a.balance()), "&7Cantidad: " + Money.fmt(a.currency(), fifth), "", "&e▸ Clic para " + verb), 16), () -> run(p, a, deposit, fifth, back)));
+            l.add(Btn.of(16, Items.of(Material.OAK_SIGN, "&dCantidad personalizada", "&8Banco · " + (deposit ? "depósito" : "retiro"), "",
+                    "&7Saldo actual: " + Money.fmt(a.currency(), a.balance()), "&8Admite 1.5k, 2m, 3b o 'todo'.", "", "&e▸ Clic para escribir"), () ->
                     Prompt.ask(p, "Cantidad a " + verb, s -> {
                         BigDecimal v = amount(s, source);
                         run(p, a, deposit, v, back);

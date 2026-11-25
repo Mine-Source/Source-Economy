@@ -45,6 +45,7 @@ public final class BazaarMenus {
 
     // ------------------------------------------------------------------ categories
 
+    private static final String[] CAT_PANE = {"GRAY", "LIGHT_BLUE", "YELLOW", "RED", "BROWN", "MAGENTA"};
     private static final String[] CATS = {null, "mining", "farming", "combat", "woods", "misc"};
     private static final String[] CAT_NAME = {"Todo", "Minería", "Cultivos", "Combate", "Madera", "Varios"};
     private static final String[] CAT_ICON = {"NETHER_STAR", "DIAMOND_PICKAXE", "WHEAT", "IRON_SWORD", "OAK_LOG", "CHEST"};
@@ -116,28 +117,29 @@ public final class BazaarMenus {
             if (page < 0) page = 0;
             for (int i = 0; i < GRID.length && page * GRID.length + i < list.size(); i++) {
                 Info inf = list.get(page * GRID.length + i);
-                set(GRID[i], productIcon(inf), ci -> product(viewer, inf.product().id(), () -> new Browser(viewer, back, cat).load()));
+                set(GRID[i], productIcon(inf), ci -> product(viewer, inf.product().id(), () -> Browser.this.load()));
             }
             if (list.isEmpty()) set(22, Items.of(Material.BARRIER, "&cSin productos", "&7No hay productos en esta categoría", "&7o con ese filtro."));
             for (int i = 0; i < CATS.length; i++) {
                 final String c = CATS[i];
                 boolean sel = java.util.Objects.equals(c, cat);
-                ItemStack it = Items.of(CAT_ICON[i], (sel ? "&a▶ " : "&e") + CAT_NAME[i], "&8Categoría de productos", "", sel ? "&a✔ Seleccionada" : "&e▸ Clic para seleccionar");
+                ItemStack it = Items.of(CAT_ICON[i], (sel ? "&a▶ " : "&e") + CAT_NAME[i], "&8Categoría de productos", "", sel ? "&a✔ Categoría seleccionada" : "&e▸ Clic para ver productos");
                 if (sel) Items.glow(it);
                 set(1 + i, it, ci -> { cat = c; page = 0; refresh(); });
             }
-            if (page > 0) set(45, Items.of(Material.ARROW, "&e◀ Anterior", "&7Página &f" + page), c -> { page--; refresh(); });
-            else set(45, Items.of(Material.GRAY_DYE, "&8◀ Anterior"));
-            if (page < pages - 1) set(53, Items.of(Material.ARROW, "&eSiguiente ▶", "&7Página &f" + (page + 2)), c -> { page++; refresh(); });
-            else set(53, Items.of(Material.GRAY_DYE, "&8Siguiente ▶"));
-            backButton(46);
-            set(47, Items.of(Material.WRITABLE_BOOK, "&bMis órdenes", "&7Revisa y cancela tus órdenes", "&7abiertas.", "", "&e▸ Clic para ver"), c -> myOrders(viewer, () -> new Browser(viewer, back, cat).load()));
+            final int lastPage = pages - 1;
+            if (page > 0) set(45, Items.of(Material.ARROW, "&a◀ Página anterior", "&8(" + page + "/" + pages + ")", "", "&bClic derecho: saltar 5 páginas", "&e▸ Clic para retroceder"), c -> { page = Math.max(0, page - (c.right() ? 5 : 1)); refresh(); });
+            else set(45, Items.of(Material.GRAY_DYE, "&8◀ Página anterior", "&8Ya estás en la primera"));
+            if (page < lastPage) set(53, Items.of(Material.ARROW, "&aPágina siguiente ▶", "&8(" + (page + 2) + "/" + pages + ")", "", "&bClic derecho: saltar 5 páginas", "&e▸ Clic para avanzar"), c -> { page = Math.min(lastPage, page + (c.right() ? 5 : 1)); refresh(); });
+            else set(53, Items.of(Material.GRAY_DYE, "&8Página siguiente ▶", "&8Ya estás en la última"));
+            if (back != null) set(46, Items.of(Material.ARROW, "&a◀ Volver", "&7Al menú anterior", "", "&e▸ Clic para volver"), c -> back.run());
+            set(47, Items.of(Material.WRITABLE_BOOK, "&bMis órdenes", "&7Revisa y cancela tus órdenes", "&7abiertas.", "", "&e▸ Clic para ver"), c -> myOrders(viewer, () -> Browser.this.load()));
             set(48, Items.of(Material.OAK_SIGN, "&bBuscar", "&7Filtro: &f" + (search.isEmpty() ? "ninguno" : search), "", "&e▸ Clic para escribir", "&e▸ Clic derecho para limpiar"), c -> {
                 if (c.right()) { search = ""; page = 0; refresh(); return; }
                 Prompt.ask(viewer, "Escribe el producto a buscar", s -> { search = s; page = 0; open(); }, this::open);
             });
             closeButton(49);
-            set(50, Items.of(Material.ENDER_CHEST, "&dReclamar compras", "&7Los objetos que compres llegan", "&7a tu buzón.", "", "&e▸ Clic para reclamar"), c -> ((EconomyModule) pl.module("economy")).menus().mailbox(viewer, () -> new Browser(viewer, back, cat).load()));
+            set(50, Items.of(Material.ENDER_CHEST, "&dReclamar compras", "&7Los objetos que compres llegan", "&7a tu buzón.", "", "&e▸ Clic para reclamar"), c -> ((EconomyModule) pl.module("economy")).menus().mailbox(viewer, () -> Browser.this.load()));
             if (admin) set(51, Items.of(Material.EMERALD, "&aAñadir producto", "&7Hace comerciable un material.", "", "&e▸ Clic para añadir"), c ->
                     Prompt.ask(viewer, "Material (ej: DIAMOND) o escribe 'mano' para usar el objeto en tu mano", s -> {
                         Material m = s.equalsIgnoreCase("mano") && Inv.hand(viewer) != null ? Inv.hand(viewer).getType() : Material.matchMaterial(s.trim());
@@ -145,7 +147,7 @@ public final class BazaarMenus {
                         svc.addProduct(viewer.getName(), m, pl.currencies().defId()).whenComplete((r, t) -> Tasks.sync(() -> { if (t != null) Msg.error(viewer, t); load(); }));
                     }, this::open));
             set(52, Items.of(Material.PAPER, "&fPágina " + (page + 1) + "&8/&7" + pages, com.economycore.gui.Theme.bar(page + 1, pages, 10), "&7Productos: &f" + list.size()));
-            fillEmpty();
+            fillEmpty(Items.pane(CAT_PANE[Math.max(0, java.util.Arrays.asList(CATS).indexOf(cat))]));
         }
     }
 

@@ -98,6 +98,15 @@ final class Migrations {
         {
             "CREATE TABLE IF NOT EXISTS notifications(id INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, ts INTEGER, key TEXT, args TEXT)",
             "CREATE INDEX IF NOT EXISTS idx_notif_uuid ON notifications(uuid)"
+        },
+        {
+            "ALTER TABLE traders ADD COLUMN ui TEXT DEFAULT 'AUTO'",
+            "ALTER TABLE trader_offers ADD COLUMN cost_item2 TEXT",
+            "ALTER TABLE trader_offers ADD COLUMN cost_item2_amt INTEGER DEFAULT 0",
+            "ALTER TABLE trader_offers ADD COLUMN cooldown_sec INTEGER DEFAULT 0",
+            "ALTER TABLE trader_offers ADD COLUMN permission TEXT",
+            "ALTER TABLE trader_offers ADD COLUMN command TEXT",
+            "ALTER TABLE trader_uses ADD COLUMN last_use INTEGER DEFAULT 0"
         }
     };
 
