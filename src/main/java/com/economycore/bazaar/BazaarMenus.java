@@ -45,11 +45,12 @@ public final class BazaarMenus {
 
     // ------------------------------------------------------------------ categories
 
-    private static final String[] CAT_PANE = {"GRAY", "LIGHT_BLUE", "YELLOW", "RED", "BROWN", "MAGENTA"};
-    private static final String[] CATS = {null, "mining", "farming", "combat", "woods", "misc"};
-    private static final String[] CAT_NAME = {"Todo", "Minería", "Cultivos", "Combate", "Madera", "Varios"};
-    private static final String[] CAT_ICON = {"NETHER_STAR", "DIAMOND_PICKAXE", "WHEAT", "IRON_SWORD", "OAK_LOG", "CHEST"};
-    private static final int[] GRID = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43};
+    /** Same five sections as Hypixel's Bazaar, in a left column (slots 0, 9, 18, 27, 36). */
+    private static final String[] CAT_PANE = {"YELLOW", "LIGHT_BLUE", "RED", "BROWN", "MAGENTA"};
+    private static final String[] CATS = {"farming", "mining", "combat", "woods", "misc"};
+    private static final String[] CAT_NAME = {"Cultivos", "Minería", "Combate", "Madera y pesca", "Curiosidades"};
+    private static final String[] CAT_ICON = {"WHEAT", "DIAMOND_PICKAXE", "IRON_SWORD", "OAK_LOG", "ENDER_CHEST"};
+    private static final int[] GRID = {11, 12, 13, 14, 15, 16, 20, 21, 22, 23, 24, 25, 29, 30, 31, 32, 33, 34, 38, 39, 40, 41, 42, 43};
 
     private static String catOf(Info i) {
         String c = i.product().category();
@@ -84,9 +85,10 @@ public final class BazaarMenus {
         private String search = "";
 
         Browser(Player p, Runnable back, String cat) {
-            super(pl, p, "&6Bazaar &8➜ &6Productos", 6);
+            super(pl, p, "&6Bazaar", 6);
             this.back = back;
             this.cat = cat;
+            this.parent = back;
         }
 
         void load() {
@@ -120,58 +122,35 @@ public final class BazaarMenus {
                 set(GRID[i], productIcon(inf), ci -> product(viewer, inf.product().id(), () -> Browser.this.load()));
             }
             if (list.isEmpty()) set(22, Items.of(Material.BARRIER, "&cSin productos", "&7No hay productos en esta categoría", "&7o con ese filtro."));
+            int sel = java.util.Arrays.asList(CATS).indexOf(cat);
             for (int i = 0; i < CATS.length; i++) {
                 final String c = CATS[i];
-                boolean sel = java.util.Objects.equals(c, cat);
-                ItemStack it = Items.of(CAT_ICON[i], (sel ? "&a▶ " : "&e") + CAT_NAME[i], "&8Categoría de productos", "", sel ? "&a✔ Categoría seleccionada" : "&e▸ Clic para ver productos");
-                if (sel) Items.glow(it);
-                set(1 + i, it, ci -> { cat = c; page = 0; refresh(); });
+                boolean on = i == sel;
+                ItemStack it = Items.of(CAT_ICON[i], (on ? "&a▶ " : "&6") + CAT_NAME[i], "&8Categoría de productos", "", on ? "&a✔ Seleccionada &8(clic para quitar el filtro)" : "&e▸ Clic para ver productos");
+                if (on) Items.glow(it);
+                set(9 * i, it, ci -> { cat = on ? null : c; page = 0; refresh(); });
             }
-            final int lastPage = pages - 1;
-            if (page > 0) set(45, Items.of(Material.ARROW, "&a◀ Página anterior", "&8(" + page + "/" + pages + ")", "", "&bClic derecho: saltar 5 páginas", "&e▸ Clic para retroceder"), c -> { page = Math.max(0, page - (c.right() ? 5 : 1)); refresh(); });
-            else set(45, Items.of(Material.GRAY_DYE, "&8◀ Página anterior", "&8Ya estás en la primera"));
-            if (page < lastPage) set(53, Items.of(Material.ARROW, "&aPágina siguiente ▶", "&8(" + (page + 2) + "/" + pages + ")", "", "&bClic derecho: saltar 5 páginas", "&e▸ Clic para avanzar"), c -> { page = Math.min(lastPage, page + (c.right() ? 5 : 1)); refresh(); });
-            else set(53, Items.of(Material.GRAY_DYE, "&8Página siguiente ▶", "&8Ya estás en la última"));
-            if (back != null) set(46, Items.of(Material.ARROW, "&a◀ Volver", "&7Al menú anterior", "", "&e▸ Clic para volver"), c -> back.run());
-            set(47, Items.of(Material.WRITABLE_BOOK, "&bMis órdenes", "&7Revisa y cancela tus órdenes", "&7abiertas.", "", "&e▸ Clic para ver"), c -> myOrders(viewer, () -> Browser.this.load()));
-            set(48, Items.of(Material.OAK_SIGN, "&bBuscar", "&7Filtro: &f" + (search.isEmpty() ? "ninguno" : search), "", "&e▸ Clic para escribir", "&e▸ Clic derecho para limpiar"), c -> {
+            final int last = pages - 1;
+            if (page > 0) set(46, Items.of(Material.ARROW, "&aPágina anterior", "&8(" + page + "/" + pages + ")", "", "&bClic derecho: saltar 5 páginas", "&e▸ Clic para retroceder"),
+                    c -> { page = Math.max(0, page - (c.right() ? 5 : 1)); refresh(); });
+            if (page < last) set(53, Items.of(Material.ARROW, "&aPágina siguiente", "&8(" + (page + 2) + "/" + pages + ")", "", "&bClic derecho: saltar 5 páginas", "&e▸ Clic para avanzar"),
+                    c -> { page = Math.min(last, page + (c.right() ? 5 : 1)); refresh(); });
+            set(47, Items.of(Material.ENDER_CHEST, "&dReclamar compras", "&7Los objetos que compres llegan", "&7a tu buzón.", "", "&e▸ Clic para reclamar"),
+                    c -> ((EconomyModule) pl.module("economy")).menus().mailbox(viewer, () -> Browser.this.load()));
+            set(48, Items.of(Material.OAK_SIGN, "&bBuscar", "&7Filtro: &f" + (search.isEmpty() ? "ninguno" : search), "&7Productos: &f" + list.size(), "", "&e▸ Clic para escribir", "&e▸ Clic derecho para limpiar"), c -> {
                 if (c.right()) { search = ""; page = 0; refresh(); return; }
                 Prompt.ask(viewer, "Escribe el producto a buscar", s -> { search = s; page = 0; open(); }, this::open);
             });
-            closeButton(49);
-            set(50, Items.of(Material.ENDER_CHEST, "&dReclamar compras", "&7Los objetos que compres llegan", "&7a tu buzón.", "", "&e▸ Clic para reclamar"), c -> ((EconomyModule) pl.module("economy")).menus().mailbox(viewer, () -> Browser.this.load()));
+            nav(navSlot());
+            set(50, Items.of(Material.WRITABLE_BOOK, "&6Gestionar órdenes", "&7Revisa y cancela tus órdenes", "&7abiertas.", "", "&e▸ Clic para ver"), c -> myOrders(viewer, () -> Browser.this.load()));
             if (admin) set(51, Items.of(Material.EMERALD, "&aAñadir producto", "&7Hace comerciable un material.", "", "&e▸ Clic para añadir"), c ->
                     Prompt.ask(viewer, "Material (ej: DIAMOND) o escribe 'mano' para usar el objeto en tu mano", s -> {
                         Material m = s.equalsIgnoreCase("mano") && Inv.hand(viewer) != null ? Inv.hand(viewer).getType() : Material.matchMaterial(s.trim());
                         if (m == null || !m.isItem()) { Msg.send(viewer, "invalid-material"); open(); return; }
                         svc.addProduct(viewer.getName(), m, pl.currencies().defId()).whenComplete((r, t) -> Tasks.sync(() -> { if (t != null) Msg.error(viewer, t); load(); }));
                     }, this::open));
-            set(52, Items.of(Material.PAPER, "&fPágina " + (page + 1) + "&8/&7" + pages, com.economycore.gui.Theme.bar(page + 1, pages, 10), "&7Productos: &f" + list.size()));
-            fillEmpty(Items.pane(CAT_PANE[Math.max(0, java.util.Arrays.asList(CATS).indexOf(cat))]));
+            fillEmpty(Items.pane(sel >= 0 ? CAT_PANE[sel] : "GRAY"));
         }
-    }
-
-    // ------------------------------------------------------------------ product
-
-    private record Est(int filled, BigDecimal total) {}
-
-    private static Est estimate(List<Level> levels, int qty) {
-        int left = qty;
-        BigDecimal total = BigDecimal.ZERO;
-        for (Level lv : levels) {
-            if (left <= 0) break;
-            int take = Math.min(left, lv.qty());
-            total = total.add(lv.price().multiply(BigDecimal.valueOf(take)));
-            left -= take;
-        }
-        return new Est(qty - left, total);
-    }
-
-    private static List<String> levelsLore(List<Level> lv, String cur, String color) {
-        List<String> l = new ArrayList<>();
-        if (lv.isEmpty()) { l.add("&8Sin órdenes"); return l; }
-        for (int i = 0; i < Math.min(5, lv.size()); i++) l.add("&8• " + color + lv.get(i).qty() + "x &7a " + Money.fmt(cur, lv.get(i).price()) + " &8c/u");
-        return l;
     }
 
     public void product(Player p, String id, Runnable back) {

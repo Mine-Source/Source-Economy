@@ -106,72 +106,87 @@ public final class BankMenus {
     }
 
     public void account(Player p, String id, Runnable back, boolean admin) {
-        svc.get(id, p.getUniqueId(), admin).whenComplete((a, t) -> Tasks.sync(() -> {
+        svc.get(id, p.getUniqueId(), admin).thenCompose(a -> svc.statement(id).thenApply(st -> new Object[]{a, st})).whenComplete((box, t) -> Tasks.sync(() -> {
             if (t != null) { Msg.error(p, t); back.run(); return; }
+            Account a = (Account) box[0];
+            @SuppressWarnings("unchecked") List<BankService.Line> st = (List<BankService.Line>) box[1];
             Runnable self = () -> account(p, id, back, admin);
             boolean shared = a.type().equals("SHARED");
-            new ButtonMenu(pl, p, "&6" + (shared ? "Cuenta compartida" : "Cuenta personal") + " &8➜ &6" + a.name(), 4, true, () -> {
+            new ButtonMenu(pl, p, "&6" + (shared ? "Cuenta compartida" : "Cuenta personal"), 4, true, () -> {
                 List<Btn> l = new ArrayList<>();
                 BigDecimal purse = Ledger.cached(p.getUniqueId(), a.currency());
-                l.add(Btn.of(4, Items.of(shared ? Material.ENDER_CHEST : Material.GOLD_BLOCK, (shared ? "&b" : "&6") + a.name(),
-                        "&8" + a.id() + " · " + (shared ? "Compartida" : "Personal"), "",
-                        "&7Saldo: " + Money.fmt(a.currency(), a.balance()), "&7En tu bolsillo: " + Money.fmt(a.currency(), purse), "&7Tu rol: &f" + roleName(a.role())), () -> {}));
-                l.add(Btn.of(11, Items.of(Material.CHEST, "&aDepositar", "&7Guarda monedas en el banco para", "&7tenerlas a salvo.", "",
-                        "&7En tu bolsillo: " + Money.fmt(a.currency(), purse), "", "&e▸ Clic para depositar"), () -> amountMenu(p, a, true, self)));
+                l.add(Btn.of(11, Items.of(Material.CHEST, "&aDepositar monedas", "&7Guarda monedas en el banco para", "&7tenerlas a salvo.", "",
+                        "&7Saldo del banco: " + Money.fmt(a.currency(), a.balance()), "&7En tu bolsillo: " + Money.fmt(a.currency(), purse), "", "&e▸ Clic para depositar"), () -> amountMenu(p, a, true, self)));
                 if (a.canWithdraw() || admin) {
-                    l.add(Btn.of(13, Items.of(Material.DISPENSER, "&6Retirar", "&7Saca monedas de la cuenta.", "",
-                            "&7Saldo: " + Money.fmt(a.currency(), a.balance()), "", "&e▸ Clic para retirar"), () -> amountMenu(p, a, false, self)));
-                    l.add(Btn.of(15, Items.of(Material.PAPER, "&bTransferir", "&7Envía dinero a otra cuenta", "&7(ej. B1001) o a un jugador.", "", "&e▸ Clic para transferir"), () ->
+                    l.add(Btn.of(13, Items.of(Material.DISPENSER, "&aRetirar monedas", "&7Saca monedas de la cuenta.", "",
+                            "&7Saldo del banco: " + Money.fmt(a.currency(), a.balance()), "", "&e▸ Clic para retirar"), () -> amountMenu(p, a, false, self)));
+                    l.add(Btn.of(20, Items.of(Material.PAPER, "&bTransferir", "&7Envía dinero a otra cuenta", "&7(ej. B1001) o a un jugador.", "", "&e▸ Clic para transferir"), () ->
                             Form.of(p).ask("to", "Destino: ID de cuenta (ej B1001) o nombre de jugador").ask("amt", "Cantidad").onCancel(self).then(f -> {
                                 BigDecimal v = amount(f.get("amt"), a.balance());
                                 if (v == null || v.signum() <= 0) { Msg.send(p, "invalid-amount"); self.run(); return; }
                                 svc.transfer(p.getUniqueId(), id, f.get("to"), v).whenComplete((r, x) -> Tasks.sync(() -> { if (x != null) Msg.error(p, x); else Msg.send(p, "bank-transferred", Money.fmt(a.currency(), v), r); self.run(); }));
                             })));
                 }
-                l.add(Btn.of(20, Items.of(Material.MAP, "&eMovimientos recientes", "&7Consulta el extracto de la cuenta.", "", "&e▸ Clic para ver"), () -> statement(p, id, self)));
+                List<String> ml = new ArrayList<>();
+                ml.add("&7Tus últimas transacciones.");
+                ml.add("");
+                long now = System.currentTimeMillis();
+                if (st.isEmpty()) ml.add("&8Sin movimientos todavía.");
+                for (int i = 0; i < Math.min(5, st.size()); i++) {
+                    BankService.Line ln = st.get(i);
+                    ml.add((ln.incoming() ? "&a+ " : "&c- ") + "&6" + Money.plain(a.currency(), ln.amount()) + " &8· &7hace " + Fmt.duration(Math.max(0, now - ln.ts())));
+                }
+                ml.add("");
+                ml.add("&e▸ Clic para ver todo");
+                l.add(Btn.of(15, Items.of(Material.MAP, "&aMovimientos recientes", ml), () -> statement(p, id, self)));
+                if (shared) l.add(Btn.of(22, Items.of(Material.PLAYER_HEAD, "&dMiembros", "&7Gestores y miembros de la cuenta.", "", "&e▸ Clic para gestionar"), () -> members(p, a, self)));
+                if (a.role().equals("OWNER") || admin) l.add(Btn.of(24, Items.of(Material.TNT, "&cCerrar cuenta", "&7El saldo vuelve al dueño.", "", "&c▸ Clic para cerrar"), () ->
+                        ConfirmMenu.ask(pl, p, "&cCerrar " + a.name(), List.of("&7Saldo: " + Money.plain(a.currency(), a.balance()), "&7Se transfiere al dueño"), () ->
+                                svc.close(p.getUniqueId(), id, admin).whenComplete((r, x) -> Tasks.sync(() -> { if (x != null) Msg.error(p, x); back.run(); })), self)));
                 double rate = pl.getConfig().getDouble(shared ? "bank.interest.shared-percent" : "bank.interest.personal-percent", 0.5);
                 BigDecimal maxBal = Money.dec(pl.getConfig().getString("bank.interest.max-balance", "1000000"), BigDecimal.valueOf(1_000_000));
                 BigDecimal base = a.balance().min(maxBal);
                 BigDecimal proj = Money.scale(a.currency(), base.multiply(BigDecimal.valueOf(rate)).divide(BigDecimal.valueOf(100), 12, java.math.RoundingMode.DOWN));
-                l.add(Btn.of(22, Items.of(Material.SUNFLOWER, "&6Intereses", "&7El banco te recompensa cada &f" + pl.getConfig().getLong("bank.interest.interval-minutes", 60) + " min",
-                        "&7por las monedas depositadas.", "",
-                        "&7Tasa: &a" + rate + "%", "&7Proyectado: " + Money.fmt(a.currency(), proj),
-                        "&7Saldo máximo con interés: &f" + Money.plain(a.currency(), maxBal), "",
-                        "&7Estado: " + (a.interest() ? "&aActivos" : "&cDesactivados"), admin ? "" : null, admin ? "&e▸ Clic para alternar" : null), () -> {
+                l.add(Btn.of(32, Items.of(Material.REDSTONE_TORCH, "&aInformación", "&7" + a.name() + " &8· " + a.id(), "&7Tu rol: &f" + roleName(a.role()), "",
+                        "&7Mantén tus monedas a salvo en el banco.", "",
+                        "&7Saldo: " + Money.fmt(a.currency(), a.balance()), "&7En tu bolsillo: " + Money.fmt(a.currency(), purse), "",
+                        "&7El banco te recompensa cada &f" + pl.getConfig().getLong("bank.interest.interval-minutes", 60) + " min",
+                        "&7con intereses por tus monedas.", "",
+                        "&7Tasa: &b" + rate + "%", "&7Proyectado: " + Money.fmt(a.currency(), proj),
+                        "&7Saldo máximo con interés: &6" + Money.plain(a.currency(), maxBal), "",
+                        "&7Intereses: " + (a.interest() ? "&aActivos" : "&cDesactivados"), admin ? "" : null, admin ? "&e▸ Clic para alternar intereses" : null), () -> {
                     if (admin) svc.toggleInterest(p.getName(), id).whenComplete((r, x) -> Tasks.sync(self));
                 }));
-                if (shared) l.add(Btn.of(24, Items.of(Material.PLAYER_HEAD, "&dMiembros", "&7Gestores y miembros de la cuenta.", "", "&e▸ Clic para gestionar"), () -> members(p, a, self)));
-                if (a.role().equals("OWNER") || admin) l.add(Btn.of(35, Items.of(Material.TNT, "&cCerrar cuenta", "&7El saldo vuelve al dueño.", "", "&c▸ Clic para cerrar"), () ->
-                        ConfirmMenu.ask(pl, p, "&cCerrar " + a.name(), List.of("&7Saldo: " + Money.plain(a.currency(), a.balance()), "&7Se transfiere al dueño"), () ->
-                                svc.close(p.getUniqueId(), id, admin).whenComplete((r, x) -> Tasks.sync(() -> { if (x != null) Msg.error(p, x); back.run(); })), self)));
                 return l;
-            }).centerNav().back(back).open();
+            }).back(back).open();
         }));
     }
 
-    /** Hypixel-style quick amounts: the stack size on each icon hints at the fraction (64 = all, 32 = half...). */
+    /** Hypixel layout: deposit = 11/13/15 (whole purse, half, custom); withdraw = 10/12/14/16 (all, half, 20%, custom). The stack size on each icon hints at the fraction. */
     private void amountMenu(Player p, Account a, boolean deposit, Runnable back) {
         BigDecimal source = deposit ? Ledger.cached(p.getUniqueId(), a.currency()) : a.balance();
         BigDecimal half = Money.scale(a.currency(), source.divide(BigDecimal.valueOf(2), 12, java.math.RoundingMode.DOWN));
         BigDecimal fifth = Money.scale(a.currency(), source.multiply(BigDecimal.valueOf(0.2)));
         String verb = deposit ? "depositar" : "retirar";
-        String what = deposit ? "tu bolsillo" : "la cuenta";
-        new ButtonMenu(pl, p, "&6" + (deposit ? "Depositar" : "Retirar") + " &8➜ &6" + a.name(), 4, true, () -> {
+        String tag = deposit ? "&8Depósito en el banco" : "&8Retiro del banco";
+        new ButtonMenu(pl, p, deposit ? "&6Depositar monedas" : "&6Retirar monedas", 4, true, () -> {
             List<Btn> l = new ArrayList<>();
-            l.add(Btn.of(10, Items.qty(Items.of(Material.CHEST, "&aTodo " + (deposit ? "tu bolsillo" : "el saldo"), "&8Banco · " + (deposit ? "depósito" : "retiro"), "",
-                    "&7Saldo actual: " + Money.fmt(a.currency(), a.balance()), "&7Cantidad: " + Money.fmt(a.currency(), source), "", "&e▸ Clic para " + verb), 64), () -> run(p, a, deposit, source, back)));
-            l.add(Btn.of(12, Items.qty(Items.of(Material.CHEST, "&eMitad de " + what, "&8Banco · " + (deposit ? "depósito" : "retiro"), "",
-                    "&7Saldo actual: " + Money.fmt(a.currency(), a.balance()), "&7Cantidad: " + Money.fmt(a.currency(), half), "", "&e▸ Clic para " + verb), 32), () -> run(p, a, deposit, half, back)));
-            l.add(Btn.of(14, Items.qty(Items.of(Material.DROPPER, "&b20% de " + what, "&8Banco · " + (deposit ? "depósito" : "retiro"), "",
-                    "&7Saldo actual: " + Money.fmt(a.currency(), a.balance()), "&7Cantidad: " + Money.fmt(a.currency(), fifth), "", "&e▸ Clic para " + verb), 16), () -> run(p, a, deposit, fifth, back)));
-            l.add(Btn.of(16, Items.of(Material.OAK_SIGN, "&dCantidad personalizada", "&8Banco · " + (deposit ? "depósito" : "retiro"), "",
-                    "&7Saldo actual: " + Money.fmt(a.currency(), a.balance()), "&8Admite 1.5k, 2m, 3b o 'todo'.", "", "&e▸ Clic para escribir"), () ->
+            String all = deposit ? "&aTodo tu bolsillo" : "&aTodo el saldo";
+            String hf = deposit ? "&aMitad de tu bolsillo" : "&aMitad del saldo";
+            String bal = "&7Saldo del banco: " + Money.fmt(a.currency(), a.balance());
+            l.add(Btn.of(deposit ? 11 : 10, Items.qty(Items.of(deposit ? Material.CHEST : Material.DISPENSER, all, tag, "", bal, "&7Cantidad: " + Money.fmt(a.currency(), source), "", "&e▸ Clic para " + verb), 64),
+                    () -> run(p, a, deposit, source, back)));
+            l.add(Btn.of(deposit ? 13 : 12, Items.qty(Items.of(deposit ? Material.CHEST : Material.DROPPER, hf, tag, "", bal, "&7Cantidad: " + Money.fmt(a.currency(), half), "", "&e▸ Clic para " + verb), 32),
+                    () -> run(p, a, deposit, half, back)));
+            if (!deposit) l.add(Btn.of(14, Items.qty(Items.of(Material.DROPPER, "&aRetirar 20%", tag, "", bal, "&7Cantidad: " + Money.fmt(a.currency(), fifth), "", "&e▸ Clic para retirar"), 16),
+                    () -> run(p, a, false, fifth, back)));
+            l.add(Btn.of(deposit ? 15 : 16, Items.of(Material.OAK_SIGN, "&aCantidad personalizada", tag, "", bal, "&8Admite 1.5k, 2m, 3b o 'todo'.", "", "&e▸ Clic para escribir"), () ->
                     Prompt.ask(p, "Cantidad a " + verb, s -> {
                         BigDecimal v = amount(s, source);
                         run(p, a, deposit, v, back);
                     }, () -> amountMenu(p, a, deposit, back))));
             return l;
-        }).centerNav().back(back).open();
+        }).back(back).open();
     }
 
     private void run(Player p, Account a, boolean deposit, BigDecimal v, Runnable back) {

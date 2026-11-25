@@ -79,6 +79,14 @@ public abstract class Menu implements InventoryHolder {
         if (parent != null) set(slot, Items.of(Material.ARROW, "&e◀ Volver", "&8Regresa al menú anterior"), c -> parent.run());
     }
 
+    /** Hypixel rule: one button at the bottom centre. Sub-menus get "Volver", root menus get "Cerrar" - never both. */
+    protected void nav(int slot) {
+        if (parent != null) set(slot, Items.of(Material.ARROW, "&a◀ Volver", "&7Regresa al menú anterior"), c -> parent.run());
+        else set(slot, Items.of(Material.BARRIER, "&c✖ Cerrar"), c -> viewer.closeInventory());
+    }
+
+    protected int navSlot() { return inv.getSize() - 5; }
+
     protected void closeButton(int slot) {
         set(slot, Items.of(Material.BARRIER, "&c✖ Cerrar", "&8Cierra este menú"), c -> viewer.closeInventory());
     }

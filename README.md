@@ -252,7 +252,12 @@ Los jugadores reciben aviso (mensaje y sonido) cuando se llena una orden del baz
 La analítica vigila la bolsa y lanza alertas (`economycore.alerts`) por *wash trading* entre dos cuentas y por precios movidos por una sola cuenta. Se ajusta en `analytics.manipulation`.
 
 ## Interfaz
-Banco, Casa de subastas y Bazaar siguen un diseño tipo Hypixel: menú principal con opciones claras, explorador con categorías arriba y rejilla central, orden y filtros con lista de opciones, depósito/retiro/compra con cantidades rápidas (todo, mitad, stack, personalizada) y confirmaciones. Los avisos importantes traen botones clicables (aceptar o rechazar un intercambio, reclamar, abrir la casa de subastas); se pueden desactivar con `gui.clickable-messages`. En `messages.yml` puedes crear los tuyos con `[[texto|/comando|ayuda al pasar el ratón]]` (solo comandos de EconomyCore).
+Todos los menús siguen la distribución de Hypixel SkyBlock:
+
+- **Menús principales** (Banco, Subastas, cuenta bancaria): 4 filas, opciones centradas en las filas 2 y 3 y un único botón *Volver* (flecha) o *Cerrar* (barrera) abajo en el centro.
+- **Exploradores** (Subastas, Bazaar, listas): 6 filas, categorías en la columna izquierda (clic para filtrar, otro clic para quitar el filtro), rejilla de 24 huecos (o 28 en listas), marco del color de la categoría activa y barra inferior con página anterior/siguiente `(n/N)` (clic derecho salta 5 páginas), búsqueda (clic derecho la limpia), orden y filtros.
+- **Cantidades** (depósito/retiro, compra/venta): opciones rápidas en una sola fila (todo, mitad, stack, personalizada).
+- El botón *Volver* conserva la página, la búsqueda y la categoría en la que estabas.
 
 Paleta moderna (colores hex) en todos los menús y mensajes, marcos, botones de navegación con estado, sonidos y tamaño de página configurable en `gui` (`modern-colors`, `sounds`, `page-size`).
 

@@ -17,16 +17,24 @@ public final class ButtonMenu extends Menu {
         this.fill = fill;
     }
 
-    /** Hypixel-style navigation: back at the bottom row left of centre, close in the centre. */
-    public ButtonMenu centerNav() { this.center = true; return this; }
+    /** Kept for source compatibility: navigation is always a single button at the bottom centre. */
+    public ButtonMenu centerNav() { return this; }
 
     @Override public ButtonMenu back(Runnable parent) { this.parent = parent; return this; }
 
     @Override
     protected void render() {
         if (fill) fillEmpty();
-        for (Btn b : buttons.get()) set(b.slot(), b.item(), b.action());
-        if (center) { backButton(inv.getSize() - 6); closeButton(inv.getSize() - 5); }
-        else { backButton(inv.getSize() - 9); closeButton(inv.getSize() - 1); }
+        java.util.Set<Integer> used = new java.util.HashSet<>();
+        for (Btn b : buttons.get()) { set(b.slot(), b.item(), b.action()); used.add(b.slot()); }
+        int ns = navSlot();
+        if (used.contains(ns)) {
+            int rowStart = inv.getSize() - 9;
+            for (int d = 1; d < 5 && used.contains(ns); d++) {
+                if (ns - d >= rowStart && !used.contains(ns - d)) { ns = ns - d; break; }
+                if (ns + d < inv.getSize() && !used.contains(ns + d)) { ns = ns + d; break; }
+            }
+        }
+        if (!used.contains(ns)) nav(ns);
     }
 }

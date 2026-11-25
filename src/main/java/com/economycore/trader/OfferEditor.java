@@ -132,8 +132,7 @@ final class OfferEditor extends Menu {
         set(34, Items.of(o.enabled() ? Material.LIME_DYE : Material.GRAY_DYE, "&6Oferta " + (o.enabled() ? "&aactiva" : "&cdesactivada"), "", "&e▸ Clic para alternar"),
                 c -> Setters.flip(T, "id", o.id(), "enabled").whenComplete((r, t) -> Tasks.sync(reload)));
 
-        set(48, Items.of(Material.ARROW, "&a◀ Volver", "&7A la lista de ofertas", "", "&e▸ Clic para volver"), c -> back.run());
-        closeButton(49);
+        nav(49);
         set(53, Items.of(Material.TNT, "&cEliminar oferta", "&7No se puede deshacer.", "", "&c▸ Clic para eliminar"), c ->
                 ConfirmMenu.ask(plugin, viewer, "&cEliminar oferta #" + o.id(), List.of("&7Se borra con sus usos registrados"), () ->
                         EditMenu.update("DELETE FROM trader_uses WHERE offer_id=?", o.id()).thenCompose(v -> EditMenu.update("DELETE FROM trader_offers WHERE id=?", o.id()))

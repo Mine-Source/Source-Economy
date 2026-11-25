@@ -15,8 +15,14 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
-/** Generic paginated list with search, extra buttons, back and close. */
+/**
+ * Hypixel-style paginated list: 6 rows, a framed grid of 28 slots (10-16, 19-25, 28-34, 37-43),
+ * page arrows with "(n/N)" at 46 and 53, search at 48 and the single Go Back / Close button at 49.
+ * Extra buttons may use the free bottom-row slots (45, 47, 50, 51, 52).
+ */
 public class PagedMenu<T> extends Menu {
+    public static final int[] GRID = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43};
+
     private List<T> all = new ArrayList<>();
     private int page;
     private String search = "";
@@ -26,13 +32,11 @@ public class PagedMenu<T> extends Menu {
     private Function<T, String> searchText;
     private Supplier<List<Btn>> extras;
     private String subtitle = "";
-    private int perPage;
+    private String frame = "BLACK";
 
     public PagedMenu(EconomyCore pl, Player p, String title, Supplier<CompletableFuture<List<T>>> loader,
                      Function<T, ItemStack> icon, BiConsumer<T, ClickInfo> click) {
         super(pl, p, title, 6);
-        int cfg = pl.getConfig().getInt("gui.page-size", 45);
-        this.perPage = Math.max(9, Math.min(45, cfg - cfg % 9));
         this.loader = loader;
         this.icon = icon;
         this.click = click;
@@ -44,8 +48,11 @@ public class PagedMenu<T> extends Menu {
 
     public PagedMenu<T> subtitle(String s) { this.subtitle = s; return this; }
 
-    /** Items per page (multiple of 9, max 45). Slots from perPage to 44 stay free for extra buttons. */
-    public PagedMenu<T> pageSize(int n) { this.perPage = Math.max(9, Math.min(45, n)); return this; }
+    /** Colour of the frame panes (a stained glass colour name, e.g. "PURPLE"). */
+    public PagedMenu<T> frame(String color) { this.frame = color; return this; }
+
+    /** Kept for source compatibility; the grid is fixed at 28 slots. */
+    public PagedMenu<T> pageSize(int n) { return this; }
 
     @Override public PagedMenu<T> back(Runnable parent) { this.parent = parent; return this; }
 
@@ -69,31 +76,31 @@ public class PagedMenu<T> extends Menu {
     @Override
     protected void render() {
         List<T> list = filtered();
-        int pages = Math.max(1, (list.size() + perPage - 1) / perPage);
+        int per = GRID.length;
+        int pages = Math.max(1, (list.size() + per - 1) / per);
         if (page >= pages) page = pages - 1;
         if (page < 0) page = 0;
-        int start = page * perPage;
-        for (int i = 0; i < perPage && start + i < list.size(); i++) {
+        int start = page * per;
+        for (int i = 0; i < per && start + i < list.size(); i++) {
             T t = list.get(start + i);
-            set(i, icon.apply(t), ci -> click.accept(t, ci));
+            set(GRID[i], icon.apply(t), ci -> click.accept(t, ci));
         }
-        ItemStack f = Items.filler();
-        for (int i = 45; i < 54; i++) inv.setItem(i, f);
-        if (page > 0) set(45, Items.of(Material.ARROW, "&e◀ Anterior", "&7Ir a la página &f" + page), c -> { page--; flip(); });
-        else set(45, Items.of(Material.GRAY_DYE, "&8◀ Anterior", "&8Estás en la primera página"));
-        if (page < pages - 1) set(53, Items.of(Material.ARROW, "&eSiguiente ▶", "&7Ir a la página &f" + (page + 2)), c -> { page++; flip(); });
-        else set(53, Items.of(Material.GRAY_DYE, "&8Siguiente ▶", "&8Estás en la última página"));
-        set(49, Items.of(Material.PAPER, "&f&lPágina " + (page + 1) + "&8/&7" + pages,
-                Theme.bar(page + 1, pages, 10),
-                "&7Resultados: &f" + list.size() + (all.size() != list.size() ? "&7 de &f" + all.size() : ""), subtitle.isEmpty() ? "" : subtitle));
+        if (list.isEmpty()) set(22, Items.of(Material.BARRIER, "&cNada que mostrar", search.isEmpty() ? "&7Todavía no hay elementos." : "&7Nada coincide con &f" + search));
+        final int last = pages - 1;
+        if (page > 0) set(46, Items.of(Material.ARROW, "&aPágina anterior", "&8(" + page + "/" + pages + ")", "", "&bClic derecho: saltar 5 páginas", "&e▸ Clic para retroceder"),
+                c -> { page = Math.max(0, page - (c.right() ? 5 : 1)); flip(); });
+        if (page < last) set(53, Items.of(Material.ARROW, "&aPágina siguiente", "&8(" + (page + 2) + "/" + pages + ")", "", "&bClic derecho: saltar 5 páginas", "&e▸ Clic para avanzar"),
+                c -> { page = Math.min(last, page + (c.right() ? 5 : 1)); flip(); });
         if (searchText != null) {
-            set(48, Items.of(Material.COMPASS, "&b🔍 Buscar", "&7Filtro: &f" + (search.isEmpty() ? "ninguno" : search), "", "&e▸ Clic para escribir"), c ->
-                    Prompt.ask(viewer, "Escribe el texto a buscar", s -> { search = s; page = 0; open(); }, this::open));
-            set(50, Items.of(Material.HOPPER, "&bLimpiar filtro", "&8Quita la búsqueda actual"), c -> { search = ""; page = 0; refresh(); });
+            set(48, Items.of(Material.OAK_SIGN, "&bBuscar", "&7Filtro: &f" + (search.isEmpty() ? "ninguno" : search), "&7Resultados: &f" + list.size() + (all.size() != list.size() ? "&7 de &f" + all.size() : ""),
+                    subtitle.isEmpty() ? null : subtitle, "", "&e▸ Clic para escribir", "&e▸ Clic derecho para limpiar"), c -> {
+                if (c.right()) { search = ""; page = 0; refresh(); return; }
+                Prompt.ask(viewer, "Escribe el texto a buscar", s -> { search = s; page = 0; open(); }, this::open);
+            });
         }
-        backButton(46);
-        closeButton(52);
+        nav(navSlot());
         if (extras != null) for (Btn b : extras.get()) set(b.slot(), b.item(), b.action());
+        fillEmpty(Items.pane(frame));
     }
 
     private void flip() {

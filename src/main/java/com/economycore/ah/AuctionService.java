@@ -39,11 +39,12 @@ public final class AuctionService {
         public BigDecimal shownPrice() { return isBin() ? startPrice : (currentBid != null ? currentBid : startPrice); }
     }
 
-    public record Filter(String category, String type, String sort, UUID favoritesOf, UUID sellerOnly) {
-        public Filter withCategory(String c) { return new Filter(c, type, sort, favoritesOf, sellerOnly); }
-        public Filter withType(String t) { return new Filter(category, t, sort, favoritesOf, sellerOnly); }
-        public Filter withSort(String s) { return new Filter(category, type, s, favoritesOf, sellerOnly); }
-        public Filter withFavorites(UUID u) { return new Filter(category, type, sort, u, sellerOnly); }
+    public record Filter(String category, String type, String sort, UUID favoritesOf, UUID sellerOnly, UUID bidderOnly) {
+        public Filter(String category, String type, String sort, UUID favoritesOf, UUID sellerOnly) { this(category, type, sort, favoritesOf, sellerOnly, null); }
+        public Filter withCategory(String c) { return new Filter(c, type, sort, favoritesOf, sellerOnly, bidderOnly); }
+        public Filter withType(String t) { return new Filter(category, t, sort, favoritesOf, sellerOnly, bidderOnly); }
+        public Filter withSort(String s) { return new Filter(category, type, s, favoritesOf, sellerOnly, bidderOnly); }
+        public Filter withFavorites(UUID u) { return new Filter(category, type, sort, u, sellerOnly, bidderOnly); }
     }
 
     public static final String[] CATEGORIES = {"blocks", "weapons", "armor", "tools", "food", "misc"};
@@ -75,6 +76,7 @@ public final class AuctionService {
             if (f.type() != null) { sql.append(" AND type=?"); p.add(f.type()); }
             if (f.sellerOnly() != null) { sql.append(" AND seller=?"); p.add(f.sellerOnly().toString()); }
             if (f.favoritesOf() != null) { sql.append(" AND id IN (SELECT auction_id FROM auction_favorites WHERE player=?)"); p.add(f.favoritesOf().toString()); }
+            if (f.bidderOnly() != null) { sql.append(" AND id IN (SELECT auction_id FROM auction_bids WHERE bidder=?)"); p.add(f.bidderOnly().toString()); }
             switch (f.sort()) {
                 case "newest" -> sql.append(" ORDER BY id DESC");
                 case "price_asc" -> sql.append(" ORDER BY CAST(COALESCE(current_bid,start_price) AS REAL) ASC");

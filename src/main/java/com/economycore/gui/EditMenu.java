@@ -78,7 +78,6 @@ public final class EditMenu extends Menu {
             if (i >= SLOTS.length) break;
             set(SLOTS[i++], Items.of(a.icon(), a.label(), a.lore()), a.run());
         }
-        backButton(49);
-        closeButton(53);
+        nav(49);
     }
 }
