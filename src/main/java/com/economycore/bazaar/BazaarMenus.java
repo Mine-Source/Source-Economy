@@ -153,6 +153,34 @@ public final class BazaarMenus {
         }
     }
 
+    /** Estimated result of walking the visible price levels for a quantity. */
+    private record Est(int filled, BigDecimal total) {}
+
+    private static Est estimate(List<Level> levels, int qty) {
+        int left = Math.max(0, qty);
+        int filled = 0;
+        BigDecimal total = BigDecimal.ZERO;
+        for (Level l : levels) {
+            if (left <= 0) break;
+            int take = Math.min(left, l.qty());
+            total = total.add(l.price().multiply(BigDecimal.valueOf(take)));
+            filled += take;
+            left -= take;
+        }
+        return new Est(filled, total);
+    }
+
+    private List<String> levelsLore(List<Level> levels, String cur, String color) {
+        List<String> out = new ArrayList<>();
+        if (levels.isEmpty()) { out.add("&8Sin órdenes"); return out; }
+        int n = 0;
+        for (Level l : levels) {
+            if (n++ >= 7) { out.add("&8... y " + (levels.size() - 7) + " niveles más"); break; }
+            out.add(color + l.qty() + "x &7a " + Money.fmt(cur, l.price()) + " &8c/u");
+        }
+        return out;
+    }
+
     public void product(Player p, String id, Runnable back) {
         String cur = svc.currencyOf(id);
         svc.bookOf(id).thenAccept((Book b) -> Tasks.sync(() -> {
